@@ -124,3 +124,80 @@
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(76, 175, 80, 0.6);
 }
+
+/* Dashboard Specific High-Fidelity Styles */
+.dash-bg {
+  background-color: #070e09;
+}
+
+.dash-sidebar {
+  background-color: #0c1810;
+  border-color: #152b1d;
+}
+
+.dash-header {
+  background-color: #09130d;
+  border-color: #152b1d;
+}
+
+.dash-card {
+  background-color: #0e1c13;
+  border: 1px solid #1a3624;
+  border-radius: 1rem;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.dash-card:hover {
+  border-color: #234d32;
+  box-shadow: 0 12px 30px -10px rgba(0, 0, 0, 0.6), 0 0 20px rgba(34, 197, 94, 0.08);
+}
+
+.dash-card-header {
+  border-bottom: 1px solid rgba(26, 54, 36, 0.6);
+}
+
+.dash-btn-primary {
+  background: linear-gradient(135deg, #16a34a 0%, #15803d 100%);
+  color: #ffffff;
+  font-weight: 600;
+  border-radius: 0.75rem;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 14px rgba(22, 163, 74, 0.35);
+}
+
+.dash-btn-primary:hover {
+  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+  box-shadow: 0 6px 20px rgba(34, 197, 94, 0.5);
+  transform: translateY(-1px);
+}
+
+.dash-btn-secondary {
+  background-color: #122418;
+  border: 1px solid #1e3f2b;
+  color: #d1d5db;
+  font-weight: 500;
+  border-radius: 0.75rem;
+  transition: all 0.2s ease;
+}
+
+.dash-btn-secondary:hover {
+  background-color: #173020;
+  border-color: #2a5a3c;
+  color: #ffffff;
+}
+
+/* Custom mini scrollbar for dashboard */
+.dash-scroll::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+.dash-scroll::-webkit-scrollbar-track {
+  background: #0c1810;
+}
+.dash-scroll::-webkit-scrollbar-thumb {
+  background: #1e3f2b;
+  border-radius: 4px;
+}
+.dash-scroll::-webkit-scrollbar-thumb:hover {
+  background: #2a5a3c;
+}

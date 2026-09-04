@@ -425,4 +425,5 @@ This project is licensed under the **MIT License** — see the [LICENSE](LICENSE
 <div align="center">
   <p>Built with ❤️ for the future of farming.</p>
   <p><i>Smart Agriculture AI System — Empowering farmers with the power of artificial intelligence.</i></p>
-</div>
+</div>#   S m a r t - F r a m i n g - A g r i c u l t u r e -  
+ 

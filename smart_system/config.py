@@ -28,7 +28,7 @@ SYSTEM_AUTHOR = "Smart Agriculture AI Team"
 # PROJECT ROOT
 # ═══════════════════════════════════════════════════════════════
 
-PROJECT_ROOT = r"D:\Project\CropProject"
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 # ═══════════════════════════════════════════════════════════════

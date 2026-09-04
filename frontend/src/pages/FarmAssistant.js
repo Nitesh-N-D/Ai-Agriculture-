@@ -24,6 +24,7 @@ const FarmAssistant = () => {
                 text: t('assistant_greeting')
             }]);
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [t, i18n.language]);
 
     const [inputValue, setInputValue] = useState('');

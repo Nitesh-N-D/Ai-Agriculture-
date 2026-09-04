@@ -41,9 +41,11 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, validator
 import uvicorn
+import secrets
 
 from smart_system.recommendations import RecommendationEngine
 from smart_system.farm_ai_assistant import generate_farming_response
+from smart_system.database import create_user, authenticate_user, get_user_by_username
 
 # ══════════════════════════════════════════════════════════════
 # PART 6 — LOGGING SYSTEM
@@ -110,9 +112,9 @@ yield_trends_df = None
 # ══════════════════════════════════════════════════════════════
 
 app = FastAPI(
-    title="Smart Agriculture AI API",
-    version="3.0.0",
-    description="Production-grade AI inference API for plant disease, crop recommendation, and yield prediction."
+    title="Smart-Farm-Ai API",
+    version="3.1.0",
+    description="Production-grade AI inference & authentication API for Smart-Farm-Ai."
 )
 
 app.add_middleware(
@@ -419,6 +421,17 @@ class FarmAssistantRequest(BaseModel):
     question: str
 
 
+# ── Auth Request Models ───────────────────────────────────────
+class RegisterRequest(BaseModel):
+    username: str
+    password: str
+    full_name: Optional[str] = None
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+
 # ══════════════════════════════════════════════════════════════
 # PART 5 — STRUCTURED ERROR RESPONSE HELPER
 # ══════════════════════════════════════════════════════════════
@@ -429,6 +442,76 @@ def error_response(message: str, status_code: int = 500):
         status_code=status_code,
         detail={"status": "error", "message": message}
     )
+
+
+# ══════════════════════════════════════════════════════════════
+# AUTHENTICATION ENDPOINTS
+# ══════════════════════════════════════════════════════════════
+
+@app.post("/auth/register")
+def register_user(req: RegisterRequest):
+    """Register a new user account and save credentials to SQLite database."""
+    log_request("/auth/register", {"username": req.username})
+    try:
+        user = create_user(
+            username=req.username,
+            password=req.password,
+            full_name=req.full_name
+        )
+        token = f"sfa_{secrets.token_urlsafe(32)}"
+        return {
+            "status": "success",
+            "message": "Account created successfully!",
+            "user": user,
+            "token": token
+        }
+    except ValueError as e:
+        raise HTTPException(
+            status_code=400,
+            detail={"status": "error", "message": str(e)}
+        )
+    except Exception as e:
+        log_error(f"Registration failed: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail={"status": "error", "message": f"Server error: {str(e)}"}
+        )
+
+
+@app.post("/auth/login")
+def login_user(req: LoginRequest):
+    """Authenticate existing user credentials against SQLite database."""
+    log_request("/auth/login", {"username": req.username})
+    user = authenticate_user(username=req.username, password=req.password)
+    if not user:
+        existing = get_user_by_username(req.username)
+        if not existing:
+            raise HTTPException(
+                status_code=400,
+                detail={"status": "error", "message": f"User '{req.username}' does not exist. Please sign up first!"}
+            )
+        else:
+            raise HTTPException(
+                status_code=400,
+                detail={"status": "error", "message": "Incorrect password. Please try again."}
+            )
+
+    token = f"sfa_{secrets.token_urlsafe(32)}"
+    return {
+        "status": "success",
+        "message": "Login successful!",
+        "user": user,
+        "token": token
+    }
+
+
+@app.get("/auth/me")
+def get_user_profile(username: str):
+    """Retrieve profile data for the active user."""
+    user = get_user_by_username(username)
+    if not user:
+        raise HTTPException(status_code=404, detail={"status": "error", "message": "User not found"})
+    return {"status": "success", "user": user}
 
 
 # ══════════════════════════════════════════════════════════════

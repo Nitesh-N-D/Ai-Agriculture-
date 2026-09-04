@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import axios from 'axios';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
-import { FileText, CheckCircle, AlertTriangle, Loader2, UploadCloud, Map, Droplets } from 'lucide-react';
+import { FileText, CheckCircle, AlertTriangle, Loader2, Map, Droplets, Sprout, Wheat } from 'lucide-react';
 
 const Report = () => {
     const { t } = useTranslation();
@@ -18,8 +18,6 @@ const Report = () => {
         Crop: 'rice',
         Year: 2024
     });
-    const [file, setFile] = useState(null);
-    const [preview, setPreview] = useState(null);
     const [loading, setLoading] = useState(false);
     const [result, setResult] = useState(null);
     const [error, setError] = useState(null);
@@ -32,14 +30,6 @@ const Report = () => {
         });
     };
 
-    const handleFileChange = (e) => {
-        const selected = e.target.files[0];
-        if (selected) {
-            setFile(selected);
-            setPreview(URL.createObjectURL(selected));
-        }
-    };
-
     const handlePredict = async (e) => {
         e.preventDefault();
         setLoading(true);
@@ -47,8 +37,6 @@ const Report = () => {
         setResult(null);
 
         const payload = new FormData();
-        if (file) payload.append('file', file);
-
         for (const key in formData) {
             payload.append(key, formData[key]);
         }
@@ -76,63 +64,38 @@ const Report = () => {
 
     return (
         <motion.div
-            initial={{ opacity: 0, y: 30 }}
+            initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -30 }}
-            className="p-8 lg:p-12 max-w-6xl mx-auto h-full text-slate-100 relative z-10 w-full"
+            exit={{ opacity: 0, y: -20 }}
+            className="p-4 lg:p-8 max-w-6xl mx-auto h-full text-slate-100 relative z-10 w-full"
         >
-            <div className="mb-12 text-center w-full">
+            <div className="mb-8 text-center w-full">
                 <motion.div
                     initial={{ scale: 0.8, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
-                    className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-brand-500 to-brand-700 flex items-center justify-center shadow-[0_0_30px_rgba(76,175,80,0.5)] border border-brand-400/50"
+                    className="w-14 h-14 mx-auto mb-3 rounded-2xl bg-gradient-to-br from-emerald-500 to-emerald-700 flex items-center justify-center shadow-[0_0_25px_rgba(16,185,129,0.4)] border border-emerald-400/40"
                 >
-                    <FileText className="w-8 h-8 text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.8)]" />
+                    <FileText className="w-7 h-7 text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.8)]" />
                 </motion.div>
-                <h1 className="text-4xl font-extrabold mb-3 tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-white to-slate-400">{t('report_title')}</h1>
-                <p className="text-slate-400 font-light tracking-widest text-sm uppercase">{t('report_subtitle')}</p>
+                <h1 className="text-3xl lg:text-4xl font-extrabold mb-2 tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-white to-slate-300">{t('report_title')}</h1>
+                <p className="text-slate-400 font-normal tracking-wide text-xs uppercase">{t('report_subtitle')}</p>
             </div>
 
-            <div className="grid lg:grid-cols-2 gap-10 items-start">
+            <div className="grid lg:grid-cols-2 gap-8 items-start">
                 {/* Form Container */}
                 <motion.div
-                    initial={{ opacity: 0, x: -50 }}
+                    initial={{ opacity: 0, x: -30 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: 0.2 }}
-                    className="glass-card p-8 lg:p-10 relative overflow-hidden group w-full"
+                    className="dash-card p-6 lg:p-8 relative overflow-hidden group w-full"
                 >
-                    <div className="absolute inset-0 bg-brand-500/10 blur-[80px] pointer-events-none opacity-50 group-hover:opacity-100 transition-opacity duration-1000" />
-
-                    <form onSubmit={handlePredict} className="space-y-8 relative z-10">
-
-                        {/* Image Upload */}
-                        <div className="bg-white/5 p-6 rounded-2xl border border-white/10 shadow-inner">
-                            <h3 className="text-xs font-bold text-slate-400 tracking-widest uppercase mb-4 flex items-center gap-3">
-                                <UploadCloud className="w-4 h-4 text-brand-400" />
-                                {t('report_plant_image')}
-                            </h3>
-                            <div
-                                className="border border-dashed border-white/20 bg-slate-900/50 rounded-xl p-6 flex flex-col items-center justify-center text-center hover:border-brand-500 hover:bg-white/10 transition-colors cursor-pointer shadow-inner"
-                                onClick={() => document.getElementById('report-file').click()}
-                            >
-                                <input id="report-file" type="file" className="hidden" accept="image/*" onChange={handleFileChange} />
-                                {preview ? (
-                                    <motion.img
-                                        initial={{ scale: 0.9, opacity: 0 }}
-                                        animate={{ scale: 1, opacity: 1 }}
-                                        src={preview} alt="Leaf" className="h-32 object-contain rounded-lg drop-shadow-[0_0_15px_rgba(255,255,255,0.2)]"
-                                    />
-                                ) : (
-                                    <p className="text-sm text-slate-400 font-bold uppercase tracking-widest drop-shadow-[0_0_5px_rgba(0,0,0,0.5)]">{t('report_upload_leaf')}</p>
-                                )}
-                            </div>
-                        </div>
+                    <form onSubmit={handlePredict} className="space-y-6 relative z-10">
 
                         {/* Biosphere Inputs */}
-                        <div className="grid grid-cols-2 gap-5">
+                        <div className="grid grid-cols-2 gap-4">
                             <div className="col-span-2">
-                                <h3 className="text-xs font-bold text-slate-400 tracking-widest uppercase border-b border-white/10 pb-3 mb-2 flex items-center gap-2">
-                                    <Droplets className="w-4 h-4 text-indigo-400" /> {t('report_biosphere_metrics')}
+                                <h3 className="text-xs font-bold text-slate-300 tracking-wider uppercase border-b border-[#1a3624] pb-2 mb-2 flex items-center gap-2">
+                                    <Droplets className="w-4 h-4 text-emerald-400" /> {t('report_biosphere_metrics')}
                                 </h3>
                             </div>
                             {[
@@ -145,20 +108,20 @@ const Report = () => {
                                 { name: 'Rainfall', type: 'number', label: t('report_rainfall') },
                             ].map(f => (
                                 <div key={f.name}>
-                                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2 px-1">{f.label || f.name}</label>
+                                    <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5 px-1">{f.label || f.name}</label>
                                     <input
                                         type={f.type} step="any" name={f.name} value={formData[f.name]}
                                         onChange={handleChange} required
-                                        className="glowing-input font-mono text-center tracking-wider focus:ring-brand-400 focus:shadow-[0_0_20px_rgba(76,175,80,0.2)] bg-slate-900/40 py-3"
+                                        className="w-full px-3 py-2.5 rounded-xl border border-[#1a3624] bg-[#0c1810] text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500 text-center font-mono text-xs"
                                     />
                                 </div>
                             ))}
                         </div>
 
                         {/* Spatial Targets */}
-                        <div className="grid grid-cols-2 gap-5 pt-4">
+                        <div className="grid grid-cols-2 gap-4 pt-2">
                             <div className="col-span-2">
-                                <h3 className="text-xs font-bold text-slate-400 tracking-widest uppercase border-b border-white/10 pb-3 mb-2 flex items-center gap-2">
+                                <h3 className="text-xs font-bold text-slate-300 tracking-wider uppercase border-b border-[#1a3624] pb-2 mb-2 flex items-center gap-2">
                                     <Map className="w-4 h-4 text-amber-400" /> {t('report_location_details')}
                                 </h3>
                             </div>
@@ -168,26 +131,26 @@ const Report = () => {
                                 { name: 'Year', label: t('report_year') }
                             ].map(f => (
                                 <div key={f.name}>
-                                    <label className="block text-xs font-bold text-slate-500 uppercase tracking-widest mb-2 px-1">{f.label}</label>
+                                    <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5 px-1">{f.label}</label>
                                     <input
                                         type={f.name === 'Year' ? 'number' : 'text'} name={f.name} value={formData[f.name]}
                                         onChange={handleChange} required
-                                        className="glowing-input font-mono tracking-wider focus:ring-brand-400 focus:shadow-[0_0_20px_rgba(76,175,80,0.2)] bg-slate-900/40 py-3 text-center uppercase"
+                                        className="w-full px-3 py-2.5 rounded-xl border border-[#1a3624] bg-[#0c1810] text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500 text-center font-mono text-xs uppercase"
                                     />
                                 </div>
                             ))}
                         </div>
 
-                        <div className="pt-8">
+                        <div className="pt-4">
                             <motion.button
                                 whileHover={{ scale: !loading ? 1.02 : 1 }}
                                 whileTap={{ scale: !loading ? 0.98 : 1 }}
                                 type="submit"
                                 disabled={loading}
-                                className={`w-full py-5 bg-gradient-to-r from-brand-600 to-brand-500 text-white rounded-xl shadow-[0_0_20px_rgba(76,175,80,0.4)] hover:shadow-[0_0_40px_rgba(76,175,80,0.6)] transition-all duration-300 font-bold uppercase tracking-widest text-sm flex items-center justify-center gap-3 border border-brand-400/50 ${loading && 'opacity-50 cursor-not-allowed shadow-none'}`}
+                                className={`dash-btn-primary w-full py-3.5 text-xs uppercase tracking-wider flex items-center justify-center gap-2.5 ${loading && 'opacity-50 cursor-not-allowed shadow-none'}`}
                             >
-                                {loading ? <Loader2 className="animate-spin w-5 h-5 drop-shadow-[0_0_5px_currentColor]" /> : <FileText className="w-5 h-5 drop-shadow-[0_0_5px_currentColor]" />}
-                                {loading ? t('report_btn_analyzing') : t('report_btn_generate')}
+                                {loading ? <Loader2 className="animate-spin w-4 h-4" /> : <FileText className="w-4 h-4" />}
+                                <span>{loading ? t('report_btn_analyzing') : t('report_btn_generate')}</span>
                             </motion.button>
                         </div>
                     </form>
@@ -195,7 +158,7 @@ const Report = () => {
 
                 {/* Results Area */}
                 <motion.div
-                    initial={{ opacity: 0, x: 50 }}
+                    initial={{ opacity: 0, x: 30 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: 0.3 }}
                     className="h-full relative w-full"
@@ -207,10 +170,10 @@ const Report = () => {
                                 initial={{ opacity: 0, scale: 0.9 }}
                                 animate={{ opacity: 1, scale: 1 }}
                                 exit={{ opacity: 0, scale: 0.9 }}
-                                className="glass-card !bg-red-500/10 !border-red-500/30 p-6 flex gap-4 text-red-200 shadow-[0_0_30px_rgba(239,68,68,0.2)] mb-6 absolute top-0 w-full z-20"
+                                className="dash-card !bg-red-500/10 !border-red-500/30 p-5 flex gap-3 text-red-200 mb-6"
                             >
-                                <AlertTriangle className="w-6 h-6 shrink-0 drop-shadow-[0_0_5px_currentColor]" />
-                                <p className="font-medium tracking-wide">{error}</p>
+                                <AlertTriangle className="w-5 h-5 shrink-0 text-red-400" />
+                                <p className="text-xs font-medium">{error}</p>
                             </motion.div>
                         )}
 
@@ -220,12 +183,13 @@ const Report = () => {
                                 initial={{ opacity: 0 }}
                                 animate={{ opacity: 1 }}
                                 exit={{ opacity: 0 }}
-                                className="glass-card p-10 flex flex-col items-center justify-center text-center h-[500px] border-dashed !bg-white/5 w-full"
+                                className="dash-card p-8 flex flex-col items-center justify-center text-center h-[460px] border-dashed"
                             >
-                                <div className="w-20 h-20 rounded-full bg-white/5 flex items-center justify-center mb-6 shadow-[inset_0_0_20px_rgba(255,255,255,0.05)] border border-white/10">
-                                    <FileText className="w-10 h-10 text-slate-500 drop-shadow-[0_0_5px_rgba(255,255,255,0.1)]" />
+                                <div className="w-16 h-16 rounded-2xl bg-[#122418] border border-[#1b3a26] flex items-center justify-center mb-4">
+                                    <FileText className="w-8 h-8 text-slate-400" />
                                 </div>
-                                <p className="text-slate-400 font-light tracking-wide max-w-[250px] uppercase text-sm leading-relaxed">
+                                <h3 className="text-sm font-bold text-white mb-2">Integrated Farm Report</h3>
+                                <p className="text-slate-400 text-xs max-w-[280px] leading-relaxed">
                                     {t('report_placeholder_desc')}
                                 </p>
                             </motion.div>
@@ -236,76 +200,39 @@ const Report = () => {
                                 key="result"
                                 initial={{ opacity: 0, y: 20 }}
                                 animate={{ opacity: 1, y: 0 }}
-                                className="glass-card overflow-hidden w-full relative group"
+                                className="dash-card overflow-hidden w-full relative"
                             >
-                                <div className="absolute inset-0 bg-brand-500/10 blur-[80px] pointer-events-none opacity-50 group-hover:opacity-80 transition-opacity" />
-
-                                <div className="bg-slate-900/60 p-8 border-b border-white/5 shadow-inner backdrop-blur-md relative z-10 flex flex-col items-center text-center">
-                                    <motion.div
-                                        initial={{ scale: 0 }}
-                                        animate={{ scale: 1 }}
-                                        transition={{ type: "spring", bounce: 0.5, delay: 0.1 }}
-                                        className="flex items-center justify-center w-16 h-16 rounded-full bg-white/10 border border-brand-400/50 shadow-[0_0_20px_rgba(16,185,129,0.3)] mb-4"
-                                    >
-                                        <CheckCircle className="w-8 h-8 text-brand-400 drop-shadow-[0_0_5px_currentColor]" />
-                                    </motion.div>
-                                    <h3 className="text-2xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-white to-slate-300 uppercase tracking-widest drop-shadow-[0_0_10px_rgba(255,255,255,0.2)]">{t('report_analysis_complete')}</h3>
-                                    <p className="text-slate-400 text-sm tracking-widest font-bold mt-2 font-mono uppercase text-brand-300 drop-shadow-[0_0_5px_currentColor]">{t('report_generated')}</p>
+                                <div className="p-6 border-b border-[#183120] bg-[#0c1810] flex flex-col items-center text-center">
+                                    <div className="w-12 h-12 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center mb-3">
+                                        <CheckCircle className="w-6 h-6 text-emerald-400" />
+                                    </div>
+                                    <h3 className="text-xl font-bold text-white tracking-wide">{t('report_analysis_complete')}</h3>
+                                    <p className="text-emerald-400 text-xs font-semibold mt-1 uppercase tracking-wider">{t('report_generated')}</p>
                                 </div>
 
-                                <div className="p-8 space-y-6 relative z-10">
-
-                                    {/* Visual Condition Render */}
-                                    <motion.div custom={1} variants={sectionVariants} initial="hidden" animate="visible" className="glass-card !bg-white/5 !rounded-2xl p-6 border !border-white/10 shadow-inner group/card hover:!border-rose-400/50 transition-colors">
-                                        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-3">
-                                            <span className="w-3 h-3 rounded-full bg-rose-500 shadow-[0_0_10px_rgba(244,63,94,0.8)] animate-pulse"></span> {t('report_disease_detection')}
-                                        </h4>
-                                        {result.disease_prediction ? (
-                                            result.disease_prediction.error ? (
-                                                <p className="text-rose-400 tracking-wide font-mono text-sm">{result.disease_prediction.error}</p>
-                                            ) : (
-                                                <div className="flex justify-between items-end">
-                                                    <div>
-                                                        <p className="text-2xl font-extrabold text-white capitalize mb-1 tracking-wide drop-shadow-[0_0_5px_rgba(255,255,255,0.3)]">
-                                                            {result.disease_prediction.disease}
-                                                        </p>
-                                                        <p className="text-xs text-rose-300 font-bold uppercase tracking-widest">{t('report_detected_signature')}</p>
-                                                    </div>
-                                                    <div className="text-right">
-                                                        <p className="text-2xl font-extrabold text-rose-400 drop-shadow-[0_0_10px_rgba(244,63,94,0.5)] mb-1">
-                                                            {result.disease_prediction.confidence?.toFixed(1)}%
-                                                        </p>
-                                                        <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">{t('report_certainty')}</p>
-                                                    </div>
-                                                </div>
-                                            )
-                                        ) : (
-                                            <p className="text-slate-500 font-mono text-sm tracking-wide">{t('report_no_image')}</p>
-                                        )}
-                                    </motion.div>
-
-                                    {/* Crop Array Render */}
+                                <div className="p-6 space-y-4">
+                                    {/* Crop Recommendation Render */}
                                     {result.crop_recommendation && (
-                                        <motion.div custom={2} variants={sectionVariants} initial="hidden" animate="visible" className="glass-card !bg-white/5 !rounded-2xl p-6 border !border-white/10 shadow-inner group/card hover:!border-indigo-400/50 transition-colors">
-                                            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-3">
-                                                <span className="w-3 h-3 rounded-full bg-indigo-500 shadow-[0_0_10px_rgba(99,102,241,0.8)] animate-pulse"></span> {t('report_crop_recommendation')}
+                                        <motion.div custom={1} variants={sectionVariants} initial="hidden" animate="visible" className="p-4 rounded-xl bg-[#122418] border border-[#1b3a26]">
+                                            <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider mb-3 flex items-center gap-2">
+                                                <Sprout className="w-4 h-4 text-emerald-400" /> {t('report_crop_recommendation')}
                                             </h4>
                                             {result.crop_recommendation.error ? (
-                                                <p className="text-red-400 tracking-wide font-mono text-sm">{result.crop_recommendation.error}</p>
+                                                <p className="text-red-400 font-mono text-xs">{result.crop_recommendation.error}</p>
                                             ) : (
                                                 <div className="flex justify-between items-end">
                                                     <div>
-                                                        <p className="text-2xl font-extrabold text-indigo-300 capitalize mb-1 tracking-wide drop-shadow-[0_0_10px_rgba(99,102,241,0.5)]">
+                                                        <p className="text-2xl font-extrabold text-emerald-400 capitalize mb-0.5">
                                                             {result.crop_recommendation.recommended_crop}
                                                         </p>
-                                                        <p className="text-xs text-indigo-400 font-bold uppercase tracking-widest">{t('report_best_crop')}</p>
+                                                        <p className="text-[11px] text-slate-400">{t('report_best_crop')}</p>
                                                     </div>
                                                     {result.crop_recommendation.confidence && (
                                                         <div className="text-right">
-                                                            <p className="text-xl font-extrabold text-slate-200 mb-1 drop-shadow-[0_0_5px_rgba(255,255,255,0.3)]">
+                                                            <p className="text-lg font-extrabold text-white">
                                                                 {result.crop_recommendation.confidence.toFixed(1)}%
                                                             </p>
-                                                            <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">{t('report_match')}</p>
+                                                            <p className="text-[10px] text-emerald-400 font-semibold uppercase">{t('report_match')}</p>
                                                         </div>
                                                     )}
                                                 </div>
@@ -313,30 +240,31 @@ const Report = () => {
                                         </motion.div>
                                     )}
 
-                                    {/* Spatial Forecast Render */}
+                                    {/* Harvest Yield Forecast Render */}
                                     {result.yield_prediction && (
-                                        <motion.div custom={3} variants={sectionVariants} initial="hidden" animate="visible" className="glass-card !bg-white/5 !rounded-2xl p-6 border !border-white/10 shadow-inner group/card hover:!border-amber-400/50 transition-colors">
-                                            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-4 flex items-center gap-3">
-                                                <span className="w-3 h-3 rounded-full bg-amber-500 shadow-[0_0_10px_rgba(245,158,11,0.8)] animate-pulse"></span> {t('report_yield_forecast')}
+                                        <motion.div custom={2} variants={sectionVariants} initial="hidden" animate="visible" className="p-4 rounded-xl bg-[#122418] border border-[#1b3a26]">
+                                            <h4 className="text-xs font-bold text-slate-300 uppercase tracking-wider mb-3 flex items-center gap-2">
+                                                <Wheat className="w-4 h-4 text-amber-400" /> {t('report_yield_forecast')}
                                             </h4>
                                             {result.yield_prediction.error ? (
-                                                <p className="text-red-400 tracking-wide font-mono text-sm">{result.yield_prediction.error}</p>
+                                                <p className="text-red-400 font-mono text-xs">{result.yield_prediction.error}</p>
                                             ) : (
                                                 <div className="flex justify-between items-end">
                                                     <div>
-                                                        <p className="text-2xl font-extrabold text-amber-400 mb-1 drop-shadow-[0_0_10px_rgba(245,158,11,0.5)]">
-                                                            {result.yield_prediction.predicted_yield?.toFixed(2)} <span className="text-lg text-amber-400/70 font-mono tracking-widest">t/ha</span>
+                                                        <p className="text-2xl font-extrabold text-amber-400 mb-0.5">
+                                                            {result.yield_prediction.predicted_yield?.toFixed(2)} <span className="text-sm font-normal text-slate-400">t/ha</span>
                                                         </p>
-                                                        <p className="text-xs text-amber-500 font-bold uppercase tracking-widest">{t('report_estimated_yield')}</p>
+                                                        <p className="text-[11px] text-slate-400">{t('report_estimated_yield')}</p>
                                                     </div>
                                                     <div className="text-right">
-                                                        <p className={`text-xl font-extrabold mb-1 tracking-widest uppercase shadow-sm ${result.yield_prediction.yield_level === 'HIGH' ? 'text-brand-400 drop-shadow-[0_0_8px_rgba(16,185,129,0.8)]' :
-                                                            result.yield_prediction.yield_level === 'MEDIUM' ? 'text-amber-400 drop-shadow-[0_0_8px_rgba(245,158,11,0.8)]' :
-                                                                'text-rose-400 drop-shadow-[0_0_8px_rgba(244,63,94,0.8)]'
-                                                            }`}>
+                                                        <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold ${
+                                                            result.yield_prediction.yield_level === 'HIGH' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40' :
+                                                            result.yield_prediction.yield_level === 'MEDIUM' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40' :
+                                                            'bg-rose-500/20 text-rose-300 border border-rose-500/40'
+                                                        }`}>
                                                             {result.yield_prediction.yield_level}
-                                                        </p>
-                                                        <p className="text-xs text-slate-400 font-bold uppercase tracking-widest">{t('report_yield_level')}</p>
+                                                        </span>
+                                                        <p className="text-[10px] text-slate-400 font-medium mt-1">{t('report_yield_level')}</p>
                                                     </div>
                                                 </div>
                                             )}

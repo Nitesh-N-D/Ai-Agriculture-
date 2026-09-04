@@ -14,133 +14,33 @@ import {
 
 const dynamicTranslations = {
   // Explanation Keys
-  temperature_low: {
-    en: "Temperature is below ideal for the crop. Cold stress may reduce yield.",
-    hi: "तापमान आदर्श से कम है। ठंड के तनाव से उपज कम हो सकती है।",
-    mr: "तापमान आदर्शापेक्षा कमी आहे. थंडीच्या ताणामुळे उत्पादन कमी होऊ शकते."
-  },
-  temperature_high: {
-    en: "Temperature is above the ideal maximum. Heat stress may reduce grain filling.",
-    hi: "तापमान आदर्श अधिकतम से ऊपर है। गर्मी के तनाव से दाने भरने में कमी आ सकती है।",
-    mr: "तापमान आदर्श कमाल मर्यादेच्या वर आहे. उष्णतेच्या ताणामुळे दाणे भरण्यात अडथळा येऊ शकतो."
-  },
-  temperature_optimal: {
-    en: "Temperature is within the optimal range.",
-    hi: "तापमान इष्टतम है।",
-    mr: "तापमान अनुकूल मर्यादेत आहे."
-  },
-  rainfall_low: {
-    en: "Rainfall deficit detected. Supplemental irrigation is critical.",
-    hi: "वर्षा की कमी। पूरक सिंचाई आवश्यक है।",
-    mr: "पावसाची कमतरता. पूरक सिंचन आवश्यक आहे."
-  },
-  rainfall_high: {
-    en: "Excess rainfall may cause waterlogging and increase disease pressure.",
-    hi: "अत्यधिक वर्षा से बीमारियों का खतरा बढ़ सकता है।",
-    mr: "जास्त पावसामुळे पाणी साचून रोगाचा धोका वाढू शकतो."
-  },
-  rainfall_optimal: {
-    en: "Rainfall is adequate for crop requirements.",
-    hi: "वर्षा फसल के लिए पर्याप्त है।",
-    mr: "पाऊस पिकाच्या गरजेसाठी पुरेसा आहे."
-  },
-  humidity_low: {
-    en: "Low humidity may cause water stress.",
-    hi: "कम आर्द्रता जल तनाव पैदा कर सकती है।",
-    mr: "कमी आर्द्रतेमुळे पाण्याचा ताण येऊ शकतो."
-  },
-  humidity_high: {
-    en: "High humidity increases fungal disease risk.",
-    hi: "उच्च आर्द्रता फंगल रोगों के जोखिम को बढ़ाती है।",
-    mr: "जास्त आर्द्रतेमुळे बुरशीजन्य आजारांचा धोका वाढतो."
-  },
-  humidity_optimal: {
-    en: "Humidity is within the acceptable range.",
-    hi: "आर्द्रता स्वीकार्य है।",
-    mr: "आर्द्रता योग्य मर्यादेत आहे."
-  },
-  season_optimal: {
-    en: "The current season is highly suitable.",
-    hi: "वर्तमान मौसम उपयुक्त है।",
-    mr: "सध्याचा हंगाम अनुकूल आहे."
-  },
-  season_suboptimal: {
-    en: "The selected season is not ideal for this crop.",
-    hi: "चयनित मौसम आदर्श नहीं है।",
-    mr: "निवडलेला हंगाम योग्य नाही."
-  },
-  season_unknown: {
-    en: "No strong season preference data available.",
-    hi: "कोई मौसम डेटा उपलब्ध नहीं है।",
-    mr: "हंगामाच्या पसंतीचा कोणताही डेटा उपलब्ध नाही."
-  },
-  year_trend_optimal: {
-    en: "Recent year benefits from modern cultivar adoption.",
-    hi: "आधुनिक खेती अपनाने से लाभ।",
-    mr: "आधुनिक लागवड पद्धतींचा फायदा."
-  },
-  year_trend_neutral: {
-    en: "Moderate technology adoption expected.",
-    hi: "मध्यम तकनीक अपनाने की उम्मीद है।",
-    mr: "मध्यम तंत्रज्ञानाचा वापर अपेक्षित आहे."
-  },
+  temperature_low: "Temperature is below ideal for the crop. Cold stress may reduce yield.",
+  temperature_high: "Temperature is above the ideal maximum. Heat stress may reduce grain filling.",
+  temperature_optimal: "Temperature is within the optimal range.",
+  rainfall_low: "Rainfall deficit detected. Supplemental irrigation is critical.",
+  rainfall_high: "Excess rainfall may cause waterlogging and increase disease pressure.",
+  rainfall_optimal: "Rainfall is adequate for crop requirements.",
+  humidity_low: "Low humidity may cause water stress.",
+  humidity_high: "High humidity increases fungal disease risk.",
+  humidity_optimal: "Humidity is within the acceptable range.",
+  season_optimal: "The current season is highly suitable.",
+  season_suboptimal: "The selected season is not ideal for this crop.",
+  season_unknown: "No strong season preference data available.",
+  year_trend_optimal: "Recent year benefits from modern cultivar adoption.",
+  year_trend_neutral: "Moderate technology adoption expected.",
 
   // Alert Keys
-  LOW_RAINFALL: {
-    en: "Low rainfall detected. Drought risk elevated.",
-    hi: "कम वर्षा। सूखे का जोखिम बढ़ा।",
-    mr: "कमी पाऊस. दुष्काळाचा धोका."
-  },
-  SEVERE_DROUGHT_RISK: {
-    en: "Severe drought risk. Immediate irrigation required.",
-    hi: "गंभीर सूखे का जोखिम। तत्काल सिंचाई आवश्यक है।",
-    mr: "तीव्र दुष्काळाचा धोका. तातडीने सिंचन आवश्यक."
-  },
-  HIGH_HEAT_STRESS: {
-    en: "Extreme heat warning. Yield reduction possible.",
-    hi: "अत्यधिक गर्मी की चेतावनी। उपज में कमी संभव है।",
-    mr: "अति उष्णतेचा इशारा. उत्पादनात घट शक्य."
-  },
-  MILD_HEAT_STRESS: {
-    en: "Mild heat stress. Use mulching if possible.",
-    hi: "हल्की गर्मी का तनाव।",
-    mr: "सौम्य उष्णतेचा ताण."
-  },
-  FROST_WARNING: {
-    en: "Frost warning. Cold stress likely.",
-    hi: "पाले की चेतावनी। ठंड का तनाव संभव है।",
-    mr: "दव पडण्याची चेतावणी. थंडीचा ताण येण्याची शक्यता."
-  },
-  HIGH_DISEASE_RISK: {
-    en: "High humidity indicates possible fungal disease.",
-    hi: "उच्च आर्द्रता से फंगल बीमारी की संभावना।",
-    mr: "जास्त आर्द्रतेमुळे बुरशीजन्य आजाराची शक्यता."
-  },
-  ELEVATED_DISEASE_RISK: {
-    en: "Elevated disease risk detected.",
-    hi: "बढ़ी हुई बीमारी का जोखिम।",
-    mr: "रोगाचा धोका वाढला आहे."
-  },
-  WATERLOGGING_WARNING: {
-    en: "Waterlogging risk. Improve drainage.",
-    hi: "जलभराव का जोखिम। जल निकासी में सुधार करें।",
-    mr: "पाणी साचण्याचा धोका. निचरा सुधारा."
-  },
-  YIELD_BELOW_REGIONAL_AVERAGE: {
-    en: "Predicted yield is below the regional average.",
-    hi: "तुलनात्मक उपज क्षेत्रीय औसत से कम है।",
-    mr: "अपेक्षित उत्पादन प्रादेशिक सरासरीपेक्षा कमी आहे."
-  },
-  HIGH_PRODUCTION_RISK: {
-    en: "High production risk. Consider immediate mitigations.",
-    hi: "उच्च उत्पादन जोखिम। तत्काल शमन पर विचार करें।",
-    mr: "उच्च उत्पादन जोखीम. तातडीच्या उपाययोजना करा."
-  },
-  YIELD_ABOVE_REGIONAL_AVERAGE: {
-    en: "Yield is tracking above regional averages.",
-    hi: "उपज क्षेत्रीय औसत से ऊपर है।",
-    mr: "उत्पादन प्रादेशिक सरासरीच्या वर आहे."
-  }
+  LOW_RAINFALL: "Low rainfall detected. Drought risk elevated.",
+  SEVERE_DROUGHT_RISK: "Severe drought risk. Immediate irrigation required.",
+  HIGH_HEAT_STRESS: "Extreme heat warning. Yield reduction possible.",
+  MILD_HEAT_STRESS: "Mild heat stress. Use mulching if possible.",
+  FROST_WARNING: "Frost warning. Cold stress likely.",
+  HIGH_DISEASE_RISK: "High humidity indicates possible fungal disease.",
+  ELEVATED_DISEASE_RISK: "Elevated disease risk detected.",
+  WATERLOGGING_WARNING: "Waterlogging risk. Improve drainage.",
+  YIELD_BELOW_REGIONAL_AVERAGE: "Predicted yield is below the regional average.",
+  HIGH_PRODUCTION_RISK: "High production risk. Consider immediate mitigations.",
+  YIELD_ABOVE_REGIONAL_AVERAGE: "Yield is tracking above regional averages."
 };
 
 // ─── Data ───────────────────────────────────────────────────────────────────
@@ -394,7 +294,7 @@ const TrendCard = ({ trend }) => {
 };
 
 const AlertsCard = ({ alerts }) => {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   if (!alerts?.length) return null;
   return (
     <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
@@ -402,7 +302,7 @@ const AlertsCard = ({ alerts }) => {
       <SectionLabel icon={Zap} text={`${t('section_alerts')} (${alerts.length})`} color="text-rose-400" />
       <div className="flex flex-col gap-2">
         {alerts.map((a, i) => {
-          const dynamicMsg = dynamicTranslations[a.code] ? dynamicTranslations[a.code][i18n.language] : a.message;
+          const dynamicMsg = dynamicTranslations[a.code] || a.message;
           return (
           <div key={i}
             className={`flex items-start gap-3 p-3 rounded-xl border text-sm ${severityStyle(a.severity)}`}>
@@ -419,7 +319,7 @@ const AlertsCard = ({ alerts }) => {
 };
 
 const ExplanationCard = ({ explanation }) => {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   if (!explanation) return null;
   return (
@@ -437,7 +337,7 @@ const ExplanationCard = ({ explanation }) => {
             <div className="flex flex-col gap-2 mt-2">
               {explanation.factors?.map((f, i) => {
                  const key = `${f.factor.toLowerCase().replace(' ', '_')}_${f.status}`;
-                 const dynamicMsg = dynamicTranslations[key] ? dynamicTranslations[key][i18n.language] : f.message;
+                 const dynamicMsg = dynamicTranslations[key] || f.message;
                  return (
                 <div key={i}
                   className="flex items-start gap-3 p-3 bg-white/3 rounded-xl border border-white/5 hover:border-sky-500/20 transition-colors">

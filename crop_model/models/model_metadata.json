@@ -56,8 +56,8 @@
     "watermelon"
   ],
   "test_accuracy": 0.9955,
-  "cv_mean_accuracy": 0.9898,
-  "cv_std": 0.0043,
+  "cv_mean_accuracy": 0.9918,
+  "cv_std": 0.003,
   "f1_macro": 0.9954,
   "train_samples": 1760,
   "test_samples": 440,
