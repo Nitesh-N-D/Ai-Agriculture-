@@ -19,6 +19,10 @@
   "weather_humidity": "ஈரப்பதம்",
   "weather_wind": "காற்று",
   "weather_rainfall": "மழைப்பொழிவு",
+  "weather_loading": "வானிலை ஏற்றுகிறது...",
+  "weather_unavailable": "வானிலை கிடைக்கவில்லை",
+  "weather_set_location": "உங்கள் பண்ணை இருப்பிடத்தை அமைக்கவும்",
+  "weather_configure_hint": "அமைப்புகளில் உள்ளமைக்க →",
 
   "header_welcome": "மீண்டும் வருக",
   "header_farmer": "விவசாயி",

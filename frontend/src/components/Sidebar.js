@@ -1,10 +1,39 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import axios from 'axios';
+import { useSettings } from '../context/SettingsContext';
 import {
   LayoutDashboard, Microscope, Sprout, TrendingUp, Bot,
-  FileText, Bell, Clock, Settings, CloudRain, Leaf, X
+  FileText, Bell, Clock, Settings, Leaf, X,
+  Sun, CloudSun, Cloud, CloudRain, CloudDrizzle, CloudLightning,
+  CloudSnow, CloudFog, Loader2, AlertCircle, MapPin
 } from 'lucide-react';
+
+const API_BASE = 'http://127.0.0.1:8000';
+
+const getWeatherIcon = (conditionCode) => {
+  switch (conditionCode) {
+    case 'sun':
+      return Sun;
+    case 'cloud-sun':
+      return CloudSun;
+    case 'cloud':
+      return Cloud;
+    case 'cloud-rain':
+      return CloudRain;
+    case 'cloud-drizzle':
+      return CloudDrizzle;
+    case 'cloud-lightning':
+      return CloudLightning;
+    case 'cloud-snow':
+      return CloudSnow;
+    case 'cloud-fog':
+      return CloudFog;
+    default:
+      return CloudSun;
+  }
+};
 
 const Sidebar = ({
   mobileOpen,
@@ -15,6 +44,68 @@ const Sidebar = ({
 }) => {
   const location = useLocation();
   const { t } = useTranslation();
+  const { farmLocation } = useSettings();
+
+  const [weather, setWeather] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    if (!farmLocation || !farmLocation.trim()) {
+      setWeather(null);
+      setLoading(false);
+      setError(null);
+      return;
+    }
+
+    // Reset weather immediately on location change so old location data does not remain displayed
+    setWeather(null);
+    setError(null);
+    setLoading(true);
+
+    const controller = new AbortController();
+    let isMounted = true;
+
+    const fetchWeather = async (isBackground = false) => {
+      if (!isBackground) setLoading(true);
+      try {
+        const response = await axios.get(`${API_BASE}/weather`, {
+          params: { location: farmLocation.trim() },
+          signal: controller.signal,
+          timeout: 10000
+        });
+        if (isMounted && response.data?.status === 'success') {
+          setWeather(response.data.data);
+          setError(null);
+        }
+      } catch (err) {
+        if (axios.isCancel(err) || err.name === 'CanceledError') return;
+        if (isMounted) {
+          setError(err.response?.data?.detail?.message || 'Weather unavailable');
+          setWeather(null);
+        }
+      } finally {
+        if (isMounted && !isBackground) setLoading(false);
+      }
+    };
+
+    fetchWeather(false);
+
+    // Refresh periodically every 10 minutes
+    const intervalId = setInterval(() => {
+      fetchWeather(true);
+    }, 10 * 60 * 1000);
+
+    return () => {
+      isMounted = false;
+      controller.abort();
+      clearInterval(intervalId);
+    };
+  }, [farmLocation]);
+
+  const WeatherIconComponent = weather?.condition_code
+    ? getWeatherIcon(weather.condition_code)
+    : CloudRain;
 
   const navItems = [
     { label: t('nav_dashboard'), path: '/', icon: LayoutDashboard, type: 'link' },
@@ -126,29 +217,102 @@ const Sidebar = ({
 
         {/* Bottom Weather Widget */}
         <div className="p-3 border-t border-[#152b1d]">
-          <div className="p-3 rounded-2xl bg-[#0e1c13] border border-[#193523]">
-            <div className="text-[11px] text-slate-400 font-medium mb-1 truncate">
-              {t('weather_location')}
-            </div>
-            <div className="flex items-center gap-2 mb-2">
-              <CloudRain className="w-5 h-5 text-cyan-400" />
-              <span className="text-base font-bold text-white">28°C</span>
-              <span className="text-xs text-slate-300">{t('weather_condition')}</span>
-            </div>
-            <div className="grid grid-cols-3 gap-1 pt-2 border-t border-[#173020] text-center">
-              <div>
-                <div className="text-[9px] text-slate-400 uppercase tracking-wider">{t('weather_humidity')}</div>
-                <div className="text-[11px] font-semibold text-slate-200">78%</div>
+          <div className="p-3 rounded-2xl bg-[#0e1c13] border border-[#193523] transition-all">
+            {!farmLocation || !farmLocation.trim() ? (
+              <div className="text-center py-1">
+                <div className="flex items-center justify-center gap-1.5 text-xs text-amber-400 font-medium mb-1.5">
+                  <MapPin className="w-3.5 h-3.5 text-amber-400" />
+                  <span>{t('weather_set_location') || 'Set your farm location'}</span>
+                </div>
+                <button
+                  onClick={onOpenSettings}
+                  className="text-[11px] text-slate-400 hover:text-emerald-400 transition-colors font-medium py-1 px-2.5 rounded-lg bg-[#122418] border border-[#1e3f2b] w-full"
+                >
+                  {t('weather_configure_hint') || 'Configure in Settings →'}
+                </button>
               </div>
+            ) : loading && !weather ? (
               <div>
-                <div className="text-[9px] text-slate-400 uppercase tracking-wider">{t('weather_wind')}</div>
-                <div className="text-[11px] font-semibold text-slate-200">12 km/h</div>
+                <div className="text-[11px] text-slate-400 font-medium mb-1 truncate">
+                  {farmLocation}
+                </div>
+                <div className="flex items-center gap-2 mb-2 py-0.5">
+                  <Loader2 className="w-4 h-4 text-emerald-400 animate-spin flex-shrink-0" />
+                  <span className="text-xs text-slate-400">{t('weather_loading') || 'Loading weather...'}</span>
+                </div>
+                <div className="grid grid-cols-3 gap-1 pt-2 border-t border-[#173020] text-center">
+                  <div>
+                    <div className="text-[9px] text-slate-500 uppercase tracking-wider">{t('weather_humidity')}</div>
+                    <div className="text-[11px] font-semibold text-slate-500 animate-pulse">--</div>
+                  </div>
+                  <div>
+                    <div className="text-[9px] text-slate-500 uppercase tracking-wider">{t('weather_wind')}</div>
+                    <div className="text-[11px] font-semibold text-slate-500 animate-pulse">--</div>
+                  </div>
+                  <div>
+                    <div className="text-[9px] text-slate-500 uppercase tracking-wider">{t('weather_rainfall')}</div>
+                    <div className="text-[11px] font-semibold text-slate-500 animate-pulse">--</div>
+                  </div>
+                </div>
               </div>
+            ) : error && !weather ? (
               <div>
-                <div className="text-[9px] text-slate-400 uppercase tracking-wider">{t('weather_rainfall')}</div>
-                <div className="text-[11px] font-semibold text-slate-200">2.4 mm</div>
+                <div className="text-[11px] text-slate-400 font-medium mb-1 truncate">
+                  {farmLocation}
+                </div>
+                <div className="flex items-center gap-2 mb-2">
+                  <AlertCircle className="w-4 h-4 text-amber-400 flex-shrink-0" />
+                  <span className="text-xs text-amber-300/90 font-medium">{t('weather_unavailable') || 'Weather unavailable'}</span>
+                </div>
+                <div className="grid grid-cols-3 gap-1 pt-2 border-t border-[#173020] text-center">
+                  <div>
+                    <div className="text-[9px] text-slate-500 uppercase tracking-wider">{t('weather_humidity')}</div>
+                    <div className="text-[11px] font-semibold text-slate-500">—</div>
+                  </div>
+                  <div>
+                    <div className="text-[9px] text-slate-500 uppercase tracking-wider">{t('weather_wind')}</div>
+                    <div className="text-[11px] font-semibold text-slate-500">—</div>
+                  </div>
+                  <div>
+                    <div className="text-[9px] text-slate-500 uppercase tracking-wider">{t('weather_rainfall')}</div>
+                    <div className="text-[11px] font-semibold text-slate-500">—</div>
+                  </div>
+                </div>
               </div>
-            </div>
+            ) : weather ? (
+              <div>
+                <div className="text-[11px] text-slate-400 font-medium mb-1 truncate" title={farmLocation || weather.location}>
+                  {farmLocation || weather.location}
+                </div>
+                <div className="flex items-center gap-2 mb-2">
+                  <WeatherIconComponent className="w-5 h-5 text-cyan-400 flex-shrink-0" />
+                  <span className="text-base font-bold text-white">{Math.round(weather.temperature)}°C</span>
+                  <span className="text-xs text-slate-300 truncate" title={weather.condition}>
+                    {weather.condition}
+                  </span>
+                </div>
+                <div className="grid grid-cols-3 gap-1 pt-2 border-t border-[#173020] text-center">
+                  <div>
+                    <div className="text-[9px] text-slate-400 uppercase tracking-wider">{t('weather_humidity')}</div>
+                    <div className="text-[11px] font-semibold text-slate-200">
+                      {weather.humidity != null ? `${Math.round(weather.humidity)}%` : '—'}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-[9px] text-slate-400 uppercase tracking-wider">{t('weather_wind')}</div>
+                    <div className="text-[11px] font-semibold text-slate-200">
+                      {weather.wind_speed != null ? `${Math.round(weather.wind_speed)} km/h` : '—'}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-[9px] text-slate-400 uppercase tracking-wider">{t('weather_rainfall')}</div>
+                    <div className="text-[11px] font-semibold text-slate-200">
+                      {weather.rainfall != null ? `${weather.rainfall} mm` : '0 mm'}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : null}
           </div>
         </div>
       </aside>

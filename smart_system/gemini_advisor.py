@@ -1,6 +1,8 @@
 import os
 from google import genai
 
+CANDIDATE_MODELS = ['gemini-3-flash-preview', 'gemini-flash-latest']
+
 def generate_crop_advice(input_data: dict, prediction: dict) -> str:
     """
     Generates agricultural advice using the Gemini AI API.
@@ -43,12 +45,22 @@ def generate_crop_advice(input_data: dict, prediction: dict) -> str:
         CRITICAL: Provide your answer as exactly 3 very short, concise bullet points. Do not include any introductory or concluding text. Maximum 3 sentences total.
         """
         
-        response = client.models.generate_content(
-            model='gemini-2.5-flash',
-            contents=prompt
-        )
-        return response.text.strip()
+        last_error = None
+        for model_name in CANDIDATE_MODELS:
+            try:
+                response = client.models.generate_content(
+                    model=model_name,
+                    contents=prompt
+                )
+                if response and response.text:
+                    return response.text.strip()
+            except Exception as me:
+                last_error = me
+                continue
+                
+        raise last_error or RuntimeError("All candidate models failed")
         
     except Exception as e:
         print(f"Gemini API Error: {e}")
         return "AI advice temporarily unavailable. (Service Error)"
+

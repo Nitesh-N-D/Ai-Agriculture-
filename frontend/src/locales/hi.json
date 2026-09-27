@@ -19,6 +19,10 @@
   "weather_humidity": "आर्द्रता",
   "weather_wind": "हवा",
   "weather_rainfall": "वर्षा",
+  "weather_loading": "मौसम लोड हो रहा है...",
+  "weather_unavailable": "मौसम अनुपलब्ध है",
+  "weather_set_location": "अपना खेत स्थान सेट करें",
+  "weather_configure_hint": "सेटिंग्स में कॉन्फ़िगर करें →",
 
   "header_welcome": "वापसी पर स्वागत है",
   "header_farmer": "किसान",

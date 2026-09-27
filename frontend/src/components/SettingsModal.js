@@ -1,13 +1,84 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Settings, MapPin } from 'lucide-react';
+import { useSettings } from '../context/SettingsContext';
+
+const PRESET_LOCATIONS = [
+  { value: '', label: '-- None (Unconfigured) --' },
+  { value: 'Coimbatore, Tamil Nadu', label: 'Coimbatore, Tamil Nadu' },
+  { value: 'Salem, Tamil Nadu', label: 'Salem, Tamil Nadu' },
+  { value: 'Chennai, Tamil Nadu', label: 'Chennai, Tamil Nadu' },
+  { value: 'Thanjavur, Tamil Nadu', label: 'Thanjavur, Tamil Nadu' },
+  { value: 'Madurai, Tamil Nadu', label: 'Madurai, Tamil Nadu' },
+  { value: 'Erode, Tamil Nadu', label: 'Erode, Tamil Nadu' },
+  { value: 'Guntur, Andhra Pradesh', label: 'Guntur, Andhra Pradesh' },
+  { value: 'Mandya, Karnataka', label: 'Mandya, Karnataka' },
+];
 
 const SettingsModal = ({ isOpen, onClose }) => {
-  const [farmLocation, setFarmLocation] = useState('Coimbatore, Tamil Nadu');
+  const {
+    farmLocation: savedLocation,
+    yieldUnit: savedYieldUnit,
+    tempUnit: savedTempUnit,
+    autoSync: savedAutoSync,
+    updateSettings
+  } = useSettings();
+
+  const [selectedPreset, setSelectedPreset] = useState('Coimbatore, Tamil Nadu');
+  const [customLocation, setCustomLocation] = useState('');
+  const [isCustom, setIsCustom] = useState(false);
   const [yieldUnit, setYieldUnit] = useState('tons/ha');
   const [tempUnit, setTempUnit] = useState('celsius');
   const [autoSync, setAutoSync] = useState(true);
 
+  // Sync state whenever modal opens or saved values change
+  useEffect(() => {
+    if (isOpen) {
+      const loc = savedLocation || '';
+      const isPreset = PRESET_LOCATIONS.some((p) => p.value === loc);
+      if (isPreset) {
+        setSelectedPreset(loc);
+        setIsCustom(false);
+        setCustomLocation('');
+      } else if (loc) {
+        setSelectedPreset('custom');
+        setIsCustom(true);
+        setCustomLocation(loc);
+      } else {
+        setSelectedPreset('');
+        setIsCustom(false);
+        setCustomLocation('');
+      }
+      setYieldUnit(savedYieldUnit || 'tons/ha');
+      setTempUnit(savedTempUnit || 'celsius');
+      setAutoSync(savedAutoSync !== undefined ? savedAutoSync : true);
+    }
+  }, [isOpen, savedLocation, savedYieldUnit, savedTempUnit, savedAutoSync]);
+
   if (!isOpen) return null;
+
+  const handlePresetChange = (val) => {
+    if (val === 'custom') {
+      setSelectedPreset('custom');
+      setIsCustom(true);
+      if (!customLocation && savedLocation) {
+        setCustomLocation(savedLocation);
+      }
+    } else {
+      setSelectedPreset(val);
+      setIsCustom(false);
+    }
+  };
+
+  const handleSave = () => {
+    const finalLocation = isCustom ? customLocation.trim() : selectedPreset;
+    updateSettings({
+      farmLocation: finalLocation,
+      yieldUnit,
+      tempUnit,
+      autoSync
+    });
+    onClose();
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fadeIn">
@@ -34,20 +105,36 @@ const SettingsModal = ({ isOpen, onClose }) => {
           {/* Farm Location */}
           <div>
             <label className="block font-semibold text-slate-300 mb-1.5 flex items-center gap-2">
-              <MapPin className="w-3.5 h-3.5 text-emerald-400" /> Primary Farm Region
+              <MapPin className="w-3.5 h-3.5 text-emerald-400" /> Primary Farm Region / City
             </label>
             <select
-              value={farmLocation}
-              onChange={(e) => setFarmLocation(e.target.value)}
+              value={isCustom ? 'custom' : selectedPreset}
+              onChange={(e) => handlePresetChange(e.target.value)}
               className="w-full p-2.5 rounded-xl bg-[#122418] border border-[#1e3f2b] text-white focus:outline-none focus:border-emerald-500"
             >
-              <option value="Coimbatore, Tamil Nadu">Coimbatore, Tamil Nadu</option>
-              <option value="Thanjavur, Tamil Nadu">Thanjavur, Tamil Nadu</option>
-              <option value="Madurai, Tamil Nadu">Madurai, Tamil Nadu</option>
-              <option value="Erode, Tamil Nadu">Erode, Tamil Nadu</option>
-              <option value="Guntur, Andhra Pradesh">Guntur, Andhra Pradesh</option>
-              <option value="Mandya, Karnataka">Mandya, Karnataka</option>
+              {PRESET_LOCATIONS.map((loc) => (
+                <option key={loc.value} value={loc.value}>
+                  {loc.label}
+                </option>
+              ))}
+              <option value="custom">-- Custom Location (Type city / state) --</option>
             </select>
+
+            {isCustom && (
+              <div className="mt-2.5">
+                <input
+                  type="text"
+                  placeholder="e.g. Salem, Tamil Nadu or City, State"
+                  value={customLocation}
+                  onChange={(e) => setCustomLocation(e.target.value)}
+                  className="w-full p-2.5 rounded-xl bg-[#162c1e] border border-[#234b33] text-white placeholder-slate-500 text-xs focus:outline-none focus:border-emerald-500"
+                  autoFocus
+                />
+                <span className="block text-[10px] text-slate-400 mt-1">
+                  Enter "City, State" or city name for live telemetry lookup.
+                </span>
+              </div>
+            )}
           </div>
 
           {/* Units */}
@@ -102,12 +189,12 @@ const SettingsModal = ({ isOpen, onClose }) => {
         <div className="mt-6 pt-4 border-t border-[#183120] flex justify-end gap-2">
           <button
             onClick={onClose}
-            className="px-4 py-2 rounded-xl bg-[#122418] border border-[#1e3f2b] text-slate-300 text-xs font-semibold hover:text-white"
+            className="px-4 py-2 rounded-xl bg-[#122418] border border-[#1e3f2b] text-slate-300 text-xs font-semibold hover:text-white transition-colors"
           >
             Cancel
           </button>
           <button
-            onClick={onClose}
+            onClick={handleSave}
             className="px-5 py-2 rounded-xl bg-[#16a34a] hover:bg-[#22c55e] text-white text-xs font-semibold shadow-lg shadow-emerald-900/30 transition-all"
           >
             Save Preferences

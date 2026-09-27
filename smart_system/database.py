@@ -27,7 +27,7 @@ def get_connection() -> sqlite3.Connection:
 
 
 def init_db():
-    """Initialize SQLite database tables if they do not already exist."""
+    """Initialize SQLite database tables if they do not already exist and run column migrations."""
     with get_connection() as conn:
         cursor = conn.cursor()
         cursor.execute("""
@@ -37,9 +37,17 @@ def init_db():
                 password_hash TEXT NOT NULL,
                 salt TEXT NOT NULL,
                 full_name TEXT,
+                farm_location TEXT DEFAULT '',
+                settings_json TEXT DEFAULT '{}',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
+        # Migrations for existing tables
+        for col_name, col_type in [("farm_location", "TEXT DEFAULT ''"), ("settings_json", "TEXT DEFAULT '{}'")]:
+            try:
+                cursor.execute(f"ALTER TABLE users ADD COLUMN {col_name} {col_type}")
+            except sqlite3.OperationalError:
+                pass  # Column already exists
         conn.commit()
 
 
@@ -62,7 +70,7 @@ def hash_password(password: str, salt: Optional[str] = None) -> tuple[str, str]:
     return hash_bytes.hex(), salt
 
 
-def create_user(username: str, password: str, full_name: Optional[str] = None) -> Dict[str, Any]:
+def create_user(username: str, password: str, full_name: Optional[str] = None, farm_location: Optional[str] = "") -> Dict[str, Any]:
     """
     Create a new user in the database.
     
@@ -77,16 +85,17 @@ def create_user(username: str, password: str, full_name: Optional[str] = None) -
 
     pwd_hash, salt = hash_password(password)
     clean_full_name = (full_name or "").strip() or clean_username
+    clean_farm_location = (farm_location or "").strip()
 
     try:
         with get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute(
                 """
-                INSERT INTO users (username, password_hash, salt, full_name)
-                VALUES (?, ?, ?, ?)
+                INSERT INTO users (username, password_hash, salt, full_name, farm_location, settings_json)
+                VALUES (?, ?, ?, ?, ?, '{}')
                 """,
-                (clean_username, pwd_hash, salt, clean_full_name)
+                (clean_username, pwd_hash, salt, clean_full_name, clean_farm_location)
             )
             user_id = cursor.lastrowid
             conn.commit()
@@ -94,7 +103,9 @@ def create_user(username: str, password: str, full_name: Optional[str] = None) -
         return {
             "id": user_id,
             "username": clean_username,
-            "full_name": clean_full_name
+            "full_name": clean_full_name,
+            "farm_location": clean_farm_location,
+            "settings": {}
         }
     except sqlite3.IntegrityError:
         raise ValueError(f"Username '{clean_username}' is already taken. Please choose another or sign in.")
@@ -111,7 +122,7 @@ def authenticate_user(username: str, password: str) -> Optional[Dict[str, Any]]:
     with get_connection() as conn:
         cursor = conn.cursor()
         cursor.execute(
-            "SELECT id, username, password_hash, salt, full_name FROM users WHERE username = ?",
+            "SELECT id, username, password_hash, salt, full_name, farm_location, settings_json FROM users WHERE username = ?",
             (clean_username,)
         )
         row = cursor.fetchone()
@@ -124,10 +135,19 @@ def authenticate_user(username: str, password: str) -> Optional[Dict[str, Any]]:
 
     test_hash, _ = hash_password(password, salt=salt)
     if secrets.compare_digest(stored_hash, test_hash):
+        import json
+        settings = {}
+        if row["settings_json"]:
+            try:
+                settings = json.loads(row["settings_json"])
+            except Exception:
+                settings = {}
         return {
             "id": row["id"],
             "username": row["username"],
-            "full_name": row["full_name"]
+            "full_name": row["full_name"],
+            "farm_location": row["farm_location"] or "",
+            "settings": settings
         }
 
     return None
@@ -138,7 +158,7 @@ def get_user_by_username(username: str) -> Optional[Dict[str, Any]]:
     with get_connection() as conn:
         cursor = conn.cursor()
         cursor.execute(
-            "SELECT id, username, full_name, created_at FROM users WHERE username = ?",
+            "SELECT id, username, full_name, farm_location, settings_json, created_at FROM users WHERE username = ?",
             (username.strip(),)
         )
         row = cursor.fetchone()
@@ -146,12 +166,76 @@ def get_user_by_username(username: str) -> Optional[Dict[str, Any]]:
     if not row:
         return None
 
+    import json
+    settings = {}
+    if row["settings_json"]:
+        try:
+            settings = json.loads(row["settings_json"])
+        except Exception:
+            settings = {}
+
     return {
         "id": row["id"],
         "username": row["username"],
         "full_name": row["full_name"],
+        "farm_location": row["farm_location"] or "",
+        "settings": settings,
         "created_at": row["created_at"]
     }
+
+
+def update_user_settings(
+    user_id_or_username: Any,
+    farm_location: Optional[str] = None,
+    settings: Optional[Dict[str, Any]] = None
+) -> Optional[Dict[str, Any]]:
+    """Update user settings and/or farm location."""
+    import json
+    with get_connection() as conn:
+        cursor = conn.cursor()
+        if isinstance(user_id_or_username, int) or (isinstance(user_id_or_username, str) and user_id_or_username.isdigit()):
+            cursor.execute(
+                "SELECT id, username, full_name, farm_location, settings_json, created_at FROM users WHERE id = ?",
+                (int(user_id_or_username),)
+            )
+        else:
+            cursor.execute(
+                "SELECT id, username, full_name, farm_location, settings_json, created_at FROM users WHERE username = ?",
+                (str(user_id_or_username).strip(),)
+            )
+        row = cursor.fetchone()
+        if not row:
+            return None
+
+        user_id = row["id"]
+        current_loc = row["farm_location"] or ""
+        new_loc = farm_location.strip() if farm_location is not None else current_loc
+
+        current_settings = {}
+        if row["settings_json"]:
+            try:
+                current_settings = json.loads(row["settings_json"])
+            except Exception:
+                current_settings = {}
+
+        if settings:
+            current_settings.update(settings)
+
+        cursor.execute(
+            "UPDATE users SET farm_location = ?, settings_json = ? WHERE id = ?",
+            (new_loc, json.dumps(current_settings), user_id)
+        )
+        conn.commit()
+
+        return {
+            "id": user_id,
+            "username": row["username"],
+            "full_name": row["full_name"],
+            "farm_location": new_loc,
+            "settings": current_settings,
+            "created_at": row["created_at"]
+        }
+
 
 # Ensure database is initialized on import
 init_db()

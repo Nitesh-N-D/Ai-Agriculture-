@@ -19,6 +19,10 @@
   "weather_humidity": "Humidity",
   "weather_wind": "Wind",
   "weather_rainfall": "Rainfall",
+  "weather_loading": "Loading weather...",
+  "weather_unavailable": "Weather unavailable",
+  "weather_set_location": "Set your farm location",
+  "weather_configure_hint": "Configure in Settings →",
 
   "header_welcome": "Welcome back",
   "header_farmer": "Farmer",

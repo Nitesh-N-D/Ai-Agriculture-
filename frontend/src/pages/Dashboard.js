@@ -1,6 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { useSettings } from '../context/SettingsContext';
 import {
   Leaf, Sprout, Wheat, Sparkles, MessageSquare, Clock, Eye, Upload, Database, Cpu, Activity
 } from 'lucide-react';
@@ -12,6 +13,7 @@ import {
 const Dashboard = ({ onOpenHistory }) => {
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const { farmLocation } = useSettings();
 
   // Season yield trend data (May to Sep)
   const seasonYieldData = [
@@ -224,7 +226,7 @@ const Dashboard = ({ onOpenHistory }) => {
                 <div>
                   <div className="text-[11px] text-slate-400">{t('dash_yield_area')}</div>
                   <div className="text-slate-300 font-medium text-[11px] truncate">
-                    {t('weather_location')}
+                    {farmLocation || t('weather_location')}
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-1 pt-1">

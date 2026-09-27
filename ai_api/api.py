@@ -24,6 +24,18 @@ import sys
 import shutil
 import logging
 import platform
+
+if hasattr(sys.stdout, 'reconfigure'):
+    try:
+        sys.stdout.reconfigure(encoding='utf-8', errors='replace')
+    except Exception:
+        pass
+if hasattr(sys.stderr, 'reconfigure'):
+    try:
+        sys.stderr.reconfigure(encoding='utf-8', errors='replace')
+    except Exception:
+        pass
+
 from datetime import datetime
 from typing import Optional
 from dotenv import load_dotenv
@@ -43,9 +55,11 @@ from pydantic import BaseModel, validator
 import uvicorn
 import secrets
 
+import requests
 from smart_system.recommendations import RecommendationEngine
 from smart_system.farm_ai_assistant import generate_farming_response
-from smart_system.database import create_user, authenticate_user, get_user_by_username
+from smart_system.database import create_user, authenticate_user, get_user_by_username, update_user_settings
+from smart_system.yield_predictor.weather import get_state_coordinates
 
 # ══════════════════════════════════════════════════════════════
 # PART 6 — LOGGING SYSTEM
@@ -67,7 +81,7 @@ fh.setLevel(logging.DEBUG)
 ch = logging.StreamHandler(sys.stdout)
 ch.setLevel(logging.INFO)
 
-fmt = logging.Formatter("[%(levelname)s] %(asctime)s — %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
+fmt = logging.Formatter("[%(levelname)s] %(asctime)s - %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
 fh.setFormatter(fmt)
 ch.setFormatter(fmt)
 
@@ -83,10 +97,10 @@ def log_error(msg: str):
     logger.error(msg)
 
 def log_request(endpoint: str, payload: dict = None):
-    logger.info(f"REQUEST  {endpoint} — {payload or ''}")
+    logger.info(f"REQUEST  {endpoint} - {payload or ''}")
 
 def log_prediction(model: str, result: str):
-    logger.info(f"PREDICT  [{model}] → {result}")
+    logger.info(f"PREDICT  [{model}] -> {result}")
 
 
 # ══════════════════════════════════════════════════════════════
@@ -431,6 +445,11 @@ class LoginRequest(BaseModel):
     username: str
     password: str
 
+class UserSettingsRequest(BaseModel):
+    username: str
+    farm_location: Optional[str] = None
+    settings: Optional[dict] = None
+
 
 # ══════════════════════════════════════════════════════════════
 # PART 5 — STRUCTURED ERROR RESPONSE HELPER
@@ -514,6 +533,18 @@ def get_user_profile(username: str):
     return {"status": "success", "user": user}
 
 
+@app.put("/auth/settings")
+def save_user_settings(req: UserSettingsRequest):
+    """Save user farm location and application preferences."""
+    log_request("/auth/settings", {"username": req.username, "farm_location": req.farm_location})
+    if not req.username:
+        raise HTTPException(status_code=400, detail={"status": "error", "message": "Username is required"})
+    updated = update_user_settings(req.username, farm_location=req.farm_location, settings=req.settings)
+    if not updated:
+        raise HTTPException(status_code=404, detail={"status": "error", "message": "User not found"})
+    return {"status": "success", "message": "Settings updated successfully", "user": updated}
+
+
 # ══════════════════════════════════════════════════════════════
 # PART 8 — HEALTH CHECK ENDPOINT
 # ══════════════════════════════════════════════════════════════
@@ -528,6 +559,238 @@ async def health_check():
         "yield_model":     _yield_loaded,
         "timestamp":       datetime.now().isoformat()
     }
+
+
+# ══════════════════════════════════════════════════════════════
+# WEATHER ENDPOINT (WeatherAPI with Open-Meteo High Reliability Fallback)
+# ══════════════════════════════════════════════════════════════
+
+# WMO Weather code mapping for Open-Meteo
+WMO_WEATHER_MAP = {
+    0: ("Clear Sky", "sun"),
+    1: ("Mainly Clear", "sun"),
+    2: ("Partly Cloudy", "cloud-sun"),
+    3: ("Overcast", "cloud"),
+    45: ("Foggy", "cloud-fog"),
+    48: ("Depositing Rime Fog", "cloud-fog"),
+    51: ("Light Drizzle", "cloud-drizzle"),
+    53: ("Moderate Drizzle", "cloud-drizzle"),
+    55: ("Dense Drizzle", "cloud-drizzle"),
+    56: ("Light Freezing Drizzle", "cloud-drizzle"),
+    57: ("Dense Freezing Drizzle", "cloud-drizzle"),
+    61: ("Slight Rain", "cloud-rain"),
+    62: ("Light Rain", "cloud-rain"),
+    63: ("Moderate Rain", "cloud-rain"),
+    65: ("Heavy Rain", "cloud-rain"),
+    66: ("Light Freezing Rain", "cloud-rain"),
+    67: ("Heavy Freezing Rain", "cloud-rain"),
+    71: ("Slight Snow", "cloud-snow"),
+    73: ("Moderate Snow", "cloud-snow"),
+    75: ("Heavy Snow", "cloud-snow"),
+    77: ("Snow Grains", "cloud-snow"),
+    80: ("Slight Rain Showers", "cloud-rain"),
+    81: ("Moderate Rain Showers", "cloud-rain"),
+    82: ("Violent Rain Showers", "cloud-rain"),
+    85: ("Slight Snow Showers", "cloud-snow"),
+    86: ("Heavy Snow Showers", "cloud-snow"),
+    95: ("Thunderstorm", "cloud-lightning"),
+    96: ("Thunderstorm with Slight Hail", "cloud-lightning"),
+    99: ("Thunderstorm with Heavy Hail", "cloud-lightning"),
+}
+
+@app.get("/weather")
+async def get_live_weather(
+    location: Optional[str] = None,
+    city: Optional[str] = None,
+    state: Optional[str] = None
+):
+    """
+    Fetch live weather for a given location or city/state.
+    Supports WeatherAPI (if WEATHER_API_KEY/WEATHERAPI_KEY set) and Open-Meteo (zero key needed).
+    Returns real temperature (°C), weather condition, condition icon, humidity (%), wind speed (km/h), and precipitation (mm).
+    """
+    query = (location or "").strip()
+    if not query:
+        if city:
+            query = f"{city.strip()}, {state.strip()}" if state else city.strip()
+
+    if not query:
+        raise HTTPException(
+            status_code=400,
+            detail={"status": "error", "message": "Location parameter is required."}
+        )
+
+    log_request("/weather", {"query": query})
+
+    # Parse city and state hints
+    parts = [p.strip() for p in query.split(",") if p.strip()]
+    city_name = parts[0] if parts else query
+    state_name = parts[1] if len(parts) > 1 else ""
+
+    # 1. Attempt WeatherAPI if key configured in environment
+    weather_api_key = os.getenv("WEATHER_API_KEY") or os.getenv("WEATHERAPI_KEY")
+    if weather_api_key:
+        try:
+            resp = requests.get(
+                "https://api.weatherapi.com/v1/current.json",
+                params={"key": weather_api_key, "q": query, "aqi": "no"},
+                timeout=6
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                curr = data.get("current", {})
+                loc = data.get("location", {})
+                cond = curr.get("condition", {})
+                cond_text = cond.get("text", "Clear")
+                
+                cond_lower = cond_text.lower()
+                icon_type = "sun"
+                if "thunder" in cond_lower:
+                    icon_type = "cloud-lightning"
+                elif "rain" in cond_lower or "shower" in cond_lower:
+                    icon_type = "cloud-rain"
+                elif "drizzle" in cond_lower:
+                    icon_type = "cloud-drizzle"
+                elif "cloud" in cond_lower or "overcast" in cond_lower:
+                    icon_type = "cloud-sun" if "part" in cond_lower else "cloud"
+                elif "snow" in cond_lower:
+                    icon_type = "cloud-snow"
+                elif "fog" in cond_lower or "mist" in cond_lower:
+                    icon_type = "cloud-fog"
+
+                display_loc = f"{loc.get('name', city_name)}, {loc.get('region', state_name)}".strip(", ")
+                return {
+                    "status": "success",
+                    "data": {
+                        "location": display_loc or query,
+                        "city": loc.get("name", city_name),
+                        "state": loc.get("region", state_name),
+                        "country": loc.get("country", "India"),
+                        "temperature": float(curr.get("temp_c", 25.0)),
+                        "condition": cond_text,
+                        "condition_code": icon_type,
+                        "humidity": float(curr.get("humidity", 60.0)),
+                        "wind_speed": float(curr.get("wind_kph", 10.0)),
+                        "rainfall": float(curr.get("precip_mm", 0.0)),
+                        "icon_url": cond.get("icon"),
+                        "source": "weatherapi"
+                    }
+                }
+            elif resp.status_code == 400:
+                logger.warning(f"WeatherAPI reported 400 for '{query}'")
+        except Exception as e:
+            logger.warning(f"WeatherAPI request failed: {e}. Falling back to Open-Meteo.")
+
+    # 2. Open-Meteo Geocoding + Current Forecast (no API key required)
+    lat = None
+    lon = None
+    resolved_city = city_name
+    resolved_state = state_name
+    resolved_country = "India"
+
+    # Try state coordinate lookup from existing smart_system weather table first if state is given
+    if state_name:
+        coords = get_state_coordinates(state_name)
+        if coords:
+            lat, lon = coords
+
+    # Geocode city via Open-Meteo Geocoding API
+    try:
+        geo_resp = requests.get(
+            "https://geocoding-api.open-meteo.com/v1/search",
+            params={"name": city_name, "count": 5, "language": "en", "format": "json"},
+            timeout=6
+        )
+        if geo_resp.status_code == 200:
+            geo_data = geo_resp.json()
+            results = geo_data.get("results", [])
+            if results:
+                matched = results[0]
+                for r in results:
+                    r_admin = (r.get("admin1") or "").lower()
+                    r_country = (r.get("country") or "").lower()
+                    if state_name and state_name.lower() in r_admin:
+                        matched = r
+                        break
+                    if r_country == "india":
+                        matched = r
+
+                lat = matched.get("latitude")
+                lon = matched.get("longitude")
+                resolved_city = matched.get("name", city_name)
+                resolved_state = matched.get("admin1") or state_name
+                resolved_country = matched.get("country") or "India"
+    except Exception as e:
+        logger.warning(f"Open-Meteo geocoding error: {e}")
+
+    # Fallback to state coordinates if geocoding didn't resolve lat/lon
+    if (lat is None or lon is None) and (state_name or city_name):
+        coords = get_state_coordinates(state_name or city_name)
+        if coords:
+            lat, lon = coords
+            resolved_state = state_name or city_name
+
+    if lat is None or lon is None:
+        raise HTTPException(
+            status_code=404,
+            detail={"status": "error", "message": f"Could not find geographic coordinates for '{query}'."}
+        )
+
+    # Fetch current weather from Open-Meteo
+    try:
+        forecast_resp = requests.get(
+            "https://api.open-meteo.com/v1/forecast",
+            params={
+                "latitude": lat,
+                "longitude": lon,
+                "current": "temperature_2m,relative_humidity_2m,precipitation,weather_code,wind_speed_10m",
+                "timezone": "auto"
+            },
+            timeout=6
+        )
+        if forecast_resp.status_code != 200:
+            raise HTTPException(
+                status_code=503,
+                detail={"status": "error", "message": "Weather service returned an error."}
+            )
+
+        f_data = forecast_resp.json()
+        current = f_data.get("current", {})
+
+        wmo_code = current.get("weather_code", 0)
+        cond_text, cond_icon = WMO_WEATHER_MAP.get(wmo_code, ("Fair", "cloud-sun"))
+
+        display_location = f"{resolved_city}, {resolved_state}".strip(", ") if resolved_state else resolved_city
+
+        return {
+            "status": "success",
+            "data": {
+                "location": display_location or query,
+                "city": resolved_city,
+                "state": resolved_state,
+                "country": resolved_country,
+                "temperature": float(current.get("temperature_2m", 25.0)),
+                "condition": cond_text,
+                "condition_code": cond_icon,
+                "humidity": float(current.get("relative_humidity_2m", 60.0)),
+                "wind_speed": float(current.get("wind_speed_10m", 10.0)),
+                "rainfall": float(current.get("precipitation", 0.0)),
+                "source": "open-meteo"
+            }
+        }
+    except requests.exceptions.Timeout:
+        raise HTTPException(
+            status_code=504,
+            detail={"status": "error", "message": "Weather service request timed out."}
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        log_error(f"Weather fetch failed: {e}")
+        raise HTTPException(
+            status_code=503,
+            detail={"status": "error", "message": f"Failed to fetch weather: {str(e)}"}
+        )
 
 
 # ══════════════════════════════════════════════════════════════
@@ -1006,14 +1269,14 @@ async def predict_yield_v2(payload: dict):
             log_prediction(
                 "YIELD-V2",
                 f"{result['area']} | {result['crop']} | {result['year']} "
-                f"→ {result['predicted_yield']:,.2f} hg/ha ({result['yield_level']})"
+                f"-> {result['predicted_yield']:,.2f} hg/ha ({result['yield_level']})"
             )
             return {"status": "success", **result}
         else:
             detail_msg = result.get("error", "Yield prediction failed")
             suggestions = result.get("suggestions")
             if suggestions:
-                detail_msg += f" — Did you mean: {suggestions[:5]}"
+                detail_msg += f" - Did you mean: {suggestions[:5]}"
             raise HTTPException(
                 status_code=400,
                 detail={"status": "error", "message": detail_msg}
@@ -1068,7 +1331,7 @@ async def predict_yield_full(payload: dict):
             log_prediction(
                 "YIELD-FULL",
                 f"{result['area']} | {result['crop']} | {result['year']} "
-                f"→ {result['predicted_yield']:,.2f} hg/ha "
+                f"-> {result['predicted_yield']:,.2f} hg/ha "
                 f"({result['yield_level']}) | Risk: {risk.get('overall_risk', '?')}"
             )
             return {"status": "success", **result}
@@ -1076,7 +1339,7 @@ async def predict_yield_full(payload: dict):
             detail_msg  = result.get("error", "Yield prediction failed")
             suggestions = result.get("suggestions")
             if suggestions:
-                detail_msg += f" — Did you mean: {suggestions[:5]}"
+                detail_msg += f" - Did you mean: {suggestions[:5]}"
             raise HTTPException(
                 status_code=400,
                 detail={"status": "error", "message": detail_msg}
@@ -1177,27 +1440,24 @@ async def plant_doctor_diagnose(request: Request, file: UploadFile = File(...)):
 @app.post("/yield-trends")
 async def get_yield_trends(request: YieldTrendRequest):
     log_request("/yield-trends", request.dict())
-    if yield_trends_df is None:
-        error_response("Yield trends data not loaded", 503)
-        
+    if yield_trends_df is not None:
+        try:
+            filtered = yield_trends_df[
+                (yield_trends_df['Area'].str.lower() == request.Area.lower()) &
+                (yield_trends_df['Item'].str.lower() == request.Crop.lower())
+            ]
+            if not filtered.empty:
+                filtered = filtered.sort_values(by='Year')
+                trends = [{"Year": int(row['Year']), "Yield": float(row['Yield'])} for _, row in filtered.iterrows()]
+                return {"status": "success", "success": True, "area": request.Area, "crop": request.Crop, "trends": trends}
+        except Exception as e:
+            log_error(f"Yield trends df query error: {e}")
+
+    # Fallback to embedded trend knowledge base
     try:
-        filtered = yield_trends_df[
-            (yield_trends_df['Area'].str.lower() == request.Area.lower()) &
-            (yield_trends_df['Item'].str.lower() == request.Crop.lower())
-        ]
-        
-        if filtered.empty:
-            return {"status": "success", "success": True, "area": request.Area, "crop": request.Crop, "trends": []}
-            
-        filtered = filtered.sort_values(by='Year')
-        
-        trends = []
-        for _, row in filtered.iterrows():
-            trends.append({
-                "Year": int(row['Year']),
-                "Yield": float(row['Yield'])
-            })
-            
+        from smart_system.yield_predictor.context import get_trend_data
+        t_data = get_trend_data(request.Crop, request.Area)
+        trends = [{"Year": y, "Yield": round(val, 2)} for y, val in zip(t_data.get("years", []), t_data.get("yields", []))]
         return {
             "status": "success",
             "success": True,

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import { AuthProvider } from './context/AuthContext';
+import { SettingsProvider } from './context/SettingsContext';
 
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
@@ -100,7 +101,9 @@ function App() {
 const AppWrapper = () => (
   <Router>
     <AuthProvider>
-      <App />
+      <SettingsProvider>
+        <App />
+      </SettingsProvider>
     </AuthProvider>
   </Router>
 );
