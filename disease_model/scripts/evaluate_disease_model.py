@@ -116,25 +116,32 @@ print(f"   Validation images: {len(val_dataset):,}")
 
 print(f"\n🤖 Loading model...")
 
-model = models.resnet50(weights=None)
-num_features = model.fc.in_features
-model.fc = nn.Sequential(
-    nn.Dropout(0.3),
-    nn.Linear(num_features, 512),
-    nn.ReLU(),
-    nn.Dropout(0.2),
-    nn.Linear(512, num_classes)
-)
-
+# Deployed architecture: EfficientNet-B0 with Dropout(0.3)+Linear head
+# (identical to smart_system/disease_engine.py). ResNet50 variants are
+# kept only as fallbacks for older checkpoints.
+state_dict = torch.load(MODEL_PATH, map_location=device, weights_only=True)
 try:
-    state_dict = torch.load(MODEL_PATH, map_location=device, weights_only=True)
+    model = models.efficientnet_b0(weights=None)
+    model.classifier = nn.Sequential(
+        nn.Dropout(0.3),
+        nn.Linear(model.classifier[1].in_features, num_classes)
+    )
     model.load_state_dict(state_dict)
+    print("   Architecture: EfficientNet-B0")
 except RuntimeError:
-    # Legacy model format
     model = models.resnet50(weights=None)
-    model.fc = nn.Linear(model.fc.in_features, num_classes)
-    state_dict = torch.load(MODEL_PATH, map_location=device, weights_only=True)
-    model.load_state_dict(state_dict)
+    model.fc = nn.Sequential(
+        nn.Dropout(0.3), nn.Linear(model.fc.in_features, 512), nn.ReLU(),
+        nn.Dropout(0.2), nn.Linear(512, num_classes)
+    )
+    try:
+        model.load_state_dict(state_dict)
+        print("   Architecture: ResNet50 (Dropout+FC)")
+    except RuntimeError:
+        model = models.resnet50(weights=None)
+        model.fc = nn.Linear(model.fc.in_features, num_classes)
+        model.load_state_dict(state_dict)
+        print("   Architecture: ResNet50 (legacy)")
 
 model = model.to(device)
 model.eval()

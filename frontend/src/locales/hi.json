@@ -10,10 +10,8 @@
   "nav_alerts": "अलर्ट",
   "nav_history": "इतिहास",
   "nav_settings": "सेटिंग्स",
-
   "app_title": "स्मार्ट कृषि",
   "app_subtitle": "एआई प्रणाली",
-
   "weather_location": "कोयंबटूर, तमिलनाडु",
   "weather_condition": "हल्की बारिश",
   "weather_humidity": "आर्द्रता",
@@ -23,7 +21,6 @@
   "weather_unavailable": "मौसम अनुपलब्ध है",
   "weather_set_location": "अपना खेत स्थान सेट करें",
   "weather_configure_hint": "सेटिंग्स में कॉन्फ़िगर करें →",
-
   "header_welcome": "वापसी पर स्वागत है",
   "header_farmer": "किसान",
   "header_subtitle": "आज आपके खेत में क्या हो रहा है, यहाँ देखें।",
@@ -35,27 +32,20 @@
   "profile_verified_farmer": "सत्यापित किसान",
   "profile_sign_out": "साइन आउट",
   "profile_sign_in": "साइन इन / रजिस्टर",
-
   "dash_disease_title": "एआई रोग पहचान (नवीनतम)",
   "dash_view_all": "सभी देखें",
   "dash_disease_label": "रोग",
-  "dash_disease_leaf_spot": "पत्ती का धब्बा रोग",
   "dash_confidence": "विश्वसनीयता",
   "dash_severity": "गंभीरता",
   "dash_moderate": "मध्यम",
   "dash_detected_on": "पहचान की तारीख",
   "dash_view_details": "विवरण देखें",
   "dash_upload_new": "नई छवि अपलोड करें",
-
   "dash_crop_title": "शीर्ष 3 फसल सिफारिशें",
   "dash_crop_col_crop": "फसल",
   "dash_crop_col_score": "अंक",
   "dash_crop_col_suitability": "उपयुक्तता",
-  "dash_crop_maize": "मक्का",
-  "dash_crop_sugarcane": "गन्ना",
-  "dash_crop_cotton": "कपास",
   "dash_btn_get_rec": "सिफारिश प्राप्त करें",
-
   "dash_yield_title": "उपज पूर्वानुमान (इस मौसम)",
   "dash_yield_predicted": "अनुमानित उपज",
   "dash_yield_tons_ha": "टन/हेक्टेयर",
@@ -64,29 +54,11 @@
   "dash_yield_season": "मौसम",
   "dash_yield_kharif": "खरीफ 2025",
   "dash_yield_model": "पूर्वानुमान मॉडल: XGBoost Regressor",
-  "dash_yield_accuracy": "98.2% सटीकता",
-
   "dash_advisory_title": "एआई सलाह (Gemini)",
-  "dash_adv_fert_title": "उर्वरक सिफारिश",
-  "dash_adv_fert_desc": "एनपीके 19:19:19 को 120 किग्रा/हेक्टेयर विभाजित मात्रा में डालें।",
-  "dash_adv_prev_title": "रोग रोकथाम",
-  "dash_adv_prev_desc": "हर 15 दिनों में नीम के तेल का छिड़काव करें।",
-  "dash_adv_irri_title": "सिंचाई सलाह",
-  "dash_adv_irri_desc": "मिट्टी की नमी के आधार पर हर 5–6 दिन में एक बार सिंचाई करें।",
   "dash_btn_ask_ai": "एआई सहायक से पूछें",
-
   "dash_recent_activity": "हाल की गतिविधि",
-  "dash_act_leaf_analyzed": "पत्ती की छवि का विश्लेषण किया गया",
-  "dash_act_leaf_sub": "टमाटर की पत्ती",
-  "dash_act_crop_rec": "फसल सिफारिश तैयार की गई",
-  "dash_act_crop_sub": "मक्का, गन्ना, कपास",
-  "dash_act_yield_comp": "उपज पूर्वानुमान पूर्ण हुआ",
-  "dash_act_yield_sub": "मक्का - खरीफ 2025",
-  "dash_act_advisory_gen": "एआई सलाह तैयार की गई",
-  "dash_act_advisory_sub": "उर्वरक और सिंचाई मार्गदर्शन",
   "dash_view_all_history": "सभी इतिहास देखें",
   "dash_yesterday": "कल",
-
   "dash_field_overview": "खेत स्वास्थ्य अवलोकन",
   "dash_view_map": "नक्शा देखें",
   "dash_healthy": "स्वस्थ",
@@ -94,15 +66,10 @@
   "dash_high_risk": "उच्च जोखिम",
   "dash_inspect_parcels": "भूखंडों का निरीक्षण करने के लिए क्लिक करें",
   "dash_ndvi_res": "NDVI मल्टी-स्पेक्ट्रल रिज़ॉल्यूशन: 10 मीटर",
-
   "dash_disease_dist": "रोग वितरण",
   "dash_total": "कुल",
-  "dash_blight": "ब्लाइट",
-  "dash_powdery_mildew": "पाउडरी मिल्ड्यू",
-
   "dash_yield_trend": "उपज रुझान (पिछले 6 मौसम)",
   "dash_tons_ha": "टन/हेक्टेयर",
-
   "dash_system_status": "सिस्टम स्थिति",
   "dash_ai_models": "एआई मॉडल",
   "dash_data_sources": "डेटा स्रोत",
@@ -111,11 +78,9 @@
   "dash_connected": "कनेक्टेड",
   "dash_healthy_status": "स्वस्थ",
   "dash_last_updated": "अंतिम अपडेट",
-
   "modal_alerts_title": "सक्रिय कृषि अलर्ट",
   "modal_alerts_subtitle": "वास्तविक समय कृषि चेतावनी ट्रिगर (4 सक्रिय)",
   "modal_alerts_ack": "सभी स्वीकार करें",
-
   "modal_field_title": "सैटेलाइट ड्रोन खेत निगरानी",
   "modal_field_subtitle": "ऑर्थोमोज़ेक प्लॉट टेलीमेट्री और वनस्पति स्वास्थ्य सूचकांक (NDVI)",
   "modal_field_select_parcel": "खेत का प्लॉट चुनें",
@@ -125,12 +90,10 @@
   "modal_field_avail_nitrogen": "उपलब्ध नाइट्रोजन",
   "modal_field_veg_health": "वनस्पति स्वास्थ्य",
   "modal_field_close": "नक्शा बंद करें",
-
   "modal_hist_title": "कृषि गतिविधि इतिहास",
   "modal_hist_subtitle": "एआई अनुमानों और खेत गतिविधियों का पूर्ण रिकॉर्ड",
   "modal_hist_today": "आज",
   "modal_hist_close": "इतिहास बंद करें",
-
   "modal_set_title": "कृषि प्रणाली सेटिंग्स",
   "modal_set_subtitle": "क्षेत्रीय टेलीमेट्री, इकाइयाँ और सूचनाएं कॉन्फ़िगर करें",
   "modal_set_region": "प्राथमिक कृषि क्षेत्र",
@@ -140,7 +103,6 @@
   "modal_set_telemetry_desc": "लाइव मौसम और मिट्टी सेंसर अपडेट स्ट्रीम करें",
   "modal_set_cancel": "रद्द करें",
   "modal_set_save": "प्राथमिकताएं सहेजें",
-
   "home_badge": "एआई इंटेलिजेंस // सटीक कृषि",
   "home_hero_title": "स्मार्ट तरीके से खेती करें",
   "home_hero_title_accent": "Smart-Farm-Ai के साथ।",
@@ -153,7 +115,6 @@
   "home_crop_desc": "अपने खेत के लिए इष्टतम फसलों की पहचान करने के लिए मिट्टी और मौसम की स्थिति दर्ज करें।",
   "home_yield_title": "उपज पूर्वानुमान",
   "home_yield_desc": "ऐतिहासिक डेटा और जलवायु मॉडल का उपयोग करके मौसमी उपज का अनुमान लगाएं।",
-
   "yield_page_title": "उपज इंटेलिजेंस डैशबोर्ड",
   "yield_page_subtitle": "पूर्वानुमान · व्याख्या · सिफारिश · तुलना · अलर्ट",
   "yield_form_title": "इनपुट पैरामीटर",
@@ -197,7 +158,6 @@
   "severity_critical": "गंभीर",
   "severity_warning": "चेतावनी",
   "severity_info": "सूचना",
-
   "disease_title": "एआई पादप डॉक्टर",
   "disease_subtitle": "बुद्धिमान रोग विश्लेषण और उपचार सिफारिशें",
   "disease_localization": "एआई रोग स्थानीयकरण",
@@ -216,7 +176,6 @@
   "disease_treatment_plan": "उपचार योजना",
   "disease_differential_diagnosis": "विभेदक निदान",
   "disease_similar_cases": "समान मामले",
-
   "report_title": "कृषि इंटेलिजेंस रिपोर्ट",
   "report_subtitle": "व्यापक मिट्टी, फसल और उपज विश्लेषण।",
   "report_biosphere_metrics": "मिट्टी और जलवायु मेट्रिक्स",
@@ -242,14 +201,12 @@
   "report_yield_forecast": "उपज पूर्वानुमान",
   "report_estimated_yield": "अनुमानित उपज",
   "report_yield_level": "उपज स्तर",
-
   "assistant_title": "फार्म एआई सहायक",
   "assistant_subtitle": "Gemini द्वारा संचालित",
   "assistant_greeting": "नमस्ते! मैं आपका फार्म एआई सहायक हूँ। फसल स्वास्थ्य, मिट्टी प्रबंधन, उर्वरक या कीट नियंत्रण के बारे में कोई भी प्रश्न पूछें।",
   "assistant_analyzing": "विश्लेषण हो रहा है...",
   "assistant_placeholder": "फसल रोगों, उर्वरकों या मिट्टी के बारे में पूछें...",
   "assistant_warning": "कृषि सलाह लागू करने से पहले सत्यापित करें।",
-
   "crop_title": "स्मार्ट फसल सिफारिश",
   "crop_subtitle": "अपनी मिट्टी और जलवायु के लिए सर्वोत्तम फसलों की पहचान करें।",
   "crop_nitrogen": "नाइट्रोजन",

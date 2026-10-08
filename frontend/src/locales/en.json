@@ -10,10 +10,8 @@
   "nav_alerts": "Alerts",
   "nav_history": "History",
   "nav_settings": "Settings",
-
   "app_title": "Smart Agriculture",
   "app_subtitle": "AI System",
-
   "weather_location": "Coimbatore, Tamil Nadu",
   "weather_condition": "Light Rain",
   "weather_humidity": "Humidity",
@@ -23,7 +21,6 @@
   "weather_unavailable": "Weather unavailable",
   "weather_set_location": "Set your farm location",
   "weather_configure_hint": "Configure in Settings →",
-
   "header_welcome": "Welcome back",
   "header_farmer": "Farmer",
   "header_subtitle": "Here's what's happening with your farm today.",
@@ -35,27 +32,20 @@
   "profile_verified_farmer": "Verified Farmer",
   "profile_sign_out": "Sign Out",
   "profile_sign_in": "Sign In / Register",
-
   "dash_disease_title": "AI Disease Detection (Latest)",
   "dash_view_all": "View All",
   "dash_disease_label": "Disease",
-  "dash_disease_leaf_spot": "Leaf Spot",
   "dash_confidence": "Confidence",
   "dash_severity": "Severity",
   "dash_moderate": "Moderate",
   "dash_detected_on": "Detected On",
   "dash_view_details": "View Details",
   "dash_upload_new": "Upload New Image",
-
   "dash_crop_title": "Top 3 Crop Recommendations",
   "dash_crop_col_crop": "Crop",
   "dash_crop_col_score": "Score",
   "dash_crop_col_suitability": "Suitability",
-  "dash_crop_maize": "Maize",
-  "dash_crop_sugarcane": "Sugarcane",
-  "dash_crop_cotton": "Cotton",
   "dash_btn_get_rec": "Get Recommendation",
-
   "dash_yield_title": "Yield Forecast (This Season)",
   "dash_yield_predicted": "Predicted Yield",
   "dash_yield_tons_ha": "tons/ha",
@@ -64,29 +54,11 @@
   "dash_yield_season": "Season",
   "dash_yield_kharif": "Kharif 2025",
   "dash_yield_model": "Projection Model: XGBoost Regressor",
-  "dash_yield_accuracy": "98.2% Accuracy",
-
   "dash_advisory_title": "AI Advisory (Gemini)",
-  "dash_adv_fert_title": "Fertilizer Recommendation",
-  "dash_adv_fert_desc": "Apply NPK 19:19:19 @ 120 kg/ha in split doses.",
-  "dash_adv_prev_title": "Disease Prevention",
-  "dash_adv_prev_desc": "Use neem oil spray every 15 days.",
-  "dash_adv_irri_title": "Irrigation Advice",
-  "dash_adv_irri_desc": "Irrigate once in 5–6 days based on soil moisture.",
   "dash_btn_ask_ai": "Ask AI Assistant",
-
   "dash_recent_activity": "Recent Activity",
-  "dash_act_leaf_analyzed": "Leaf image analyzed",
-  "dash_act_leaf_sub": "Tomato Leaf",
-  "dash_act_crop_rec": "Crop recommendation generated",
-  "dash_act_crop_sub": "Maize, Sugarcane, Cotton",
-  "dash_act_yield_comp": "Yield forecast completed",
-  "dash_act_yield_sub": "Maize - Kharif 2025",
-  "dash_act_advisory_gen": "AI advisory generated",
-  "dash_act_advisory_sub": "Fertilizer & Irrigation advice",
   "dash_view_all_history": "View All History",
   "dash_yesterday": "Yesterday",
-
   "dash_field_overview": "Field Health Overview",
   "dash_view_map": "View Map",
   "dash_healthy": "Healthy",
@@ -94,15 +66,10 @@
   "dash_high_risk": "High Risk",
   "dash_inspect_parcels": "Click to inspect parcels",
   "dash_ndvi_res": "NDVI Multi-spectral resolution: 10m",
-
   "dash_disease_dist": "Disease Distribution",
   "dash_total": "Total",
-  "dash_blight": "Blight",
-  "dash_powdery_mildew": "Powdery Mildew",
-
   "dash_yield_trend": "Yield Trend (Last 6 Seasons)",
   "dash_tons_ha": "tons/ha",
-
   "dash_system_status": "System Status",
   "dash_ai_models": "AI Models",
   "dash_data_sources": "Data Sources",
@@ -111,11 +78,9 @@
   "dash_connected": "Connected",
   "dash_healthy_status": "Healthy",
   "dash_last_updated": "Last Updated",
-
   "modal_alerts_title": "Active Farm Alerts",
   "modal_alerts_subtitle": "Real-time agronomic warning triggers (4 active)",
   "modal_alerts_ack": "Acknowledge All",
-
   "modal_field_title": "Satellite Drone Field Monitor",
   "modal_field_subtitle": "Orthomosaic parcel telemetry & vegetation vigor index (NDVI)",
   "modal_field_select_parcel": "Select Field Parcel",
@@ -125,12 +90,10 @@
   "modal_field_avail_nitrogen": "Available Nitrogen",
   "modal_field_veg_health": "Vegetation Health",
   "modal_field_close": "Close Field Map",
-
   "modal_hist_title": "Farm Activity History",
   "modal_hist_subtitle": "Complete historical record of AI inferences & telemetry",
   "modal_hist_today": "Today",
   "modal_hist_close": "Close History",
-
   "modal_set_title": "Farm System Settings",
   "modal_set_subtitle": "Configure regional telemetry, units, and notifications",
   "modal_set_region": "Primary Farm Region",
@@ -140,7 +103,6 @@
   "modal_set_telemetry_desc": "Stream live weather and soil sensor updates",
   "modal_set_cancel": "Cancel",
   "modal_set_save": "Save Preferences",
-
   "home_badge": "AI Intelligence // Precision Agriculture",
   "home_hero_title": "Grow Smarter with",
   "home_hero_title_accent": "Smart-Farm-Ai.",
@@ -153,7 +115,6 @@
   "home_crop_desc": "Calibrate soil chemistry and atmospheric conditions to identify optimal crops for your field.",
   "home_yield_title": "Yield Prediction",
   "home_yield_desc": "Project season yields using historical data models fused with spatial and climate region analysis.",
-
   "yield_page_title": "Yield Intelligence Dashboard",
   "yield_page_subtitle": "Predict · Explain · Recommend · Compare · Alert",
   "yield_form_title": "Input Parameters",
@@ -197,7 +158,6 @@
   "severity_critical": "CRITICAL",
   "severity_warning": "WARNING",
   "severity_info": "INFO",
-
   "disease_title": "AI Plant Doctor",
   "disease_subtitle": "Intelligent Disease Analysis & Treatment Recommendations",
   "disease_localization": "AI Disease Localization",
@@ -216,7 +176,6 @@
   "disease_treatment_plan": "Treatment Plan",
   "disease_differential_diagnosis": "Differential Diagnosis",
   "disease_similar_cases": "Similar Cases",
-
   "report_title": "Farm Intelligence Report",
   "report_subtitle": "Comprehensive crop, soil, and yield analysis.",
   "report_biosphere_metrics": "Biosphere Metrics",
@@ -242,14 +201,12 @@
   "report_yield_forecast": "Yield Forecast",
   "report_estimated_yield": "Estimated Yield",
   "report_yield_level": "Yield Level",
-
   "assistant_title": "Farm AI Assistant",
   "assistant_subtitle": "Powered by Gemini",
   "assistant_greeting": "Hello! I am your Farm AI Assistant powered by Gemini. Ask me any questions about crop health, soil management, fertilizers, or dealing with pests and diseases.",
   "assistant_analyzing": "Analyzing...",
   "assistant_placeholder": "Ask about crop diseases, fertilizers, or soil...",
   "assistant_warning": "AI can make mistakes. Verify agricultural advice before applying.",
-
   "crop_title": "Smart Crop Recommendation",
   "crop_subtitle": "Identify the best crops for your soil and climate.",
   "crop_nitrogen": "Nitrogen",

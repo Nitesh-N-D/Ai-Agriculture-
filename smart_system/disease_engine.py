@@ -1,7 +1,7 @@
 """
 Disease Detection Engine — Smart Agriculture System v2.0
 ===========================================================
-Loads the trained ResNet50 CNN model and predicts plant disease
+Loads the trained EfficientNet-B0 CNN model and predicts plant disease
 from leaf images. Handles both new (Dropout+FC) and legacy
 (simple FC) model architectures automatically.
 
@@ -34,7 +34,7 @@ class DiseaseEngine:
     """
     Plant Disease Detection Engine.
 
-    Wraps the trained ResNet50 CNN and provides prediction
+    Wraps the trained EfficientNet-B0 CNN and provides prediction
     capabilities with top-K results and confidence scoring.
 
     Attributes
@@ -173,10 +173,12 @@ class DiseaseEngine:
             self.model = model.to(self.device)
             self.model.eval()
 
-            # ── Image Transform (standard ImageNet validation) ──
+            # ── Image Transform ─────────────────────────────────
+            # Must equal the validation transform in
+            # disease_model/scripts/train_disease_model.py:
+            #   Resize((224, 224)) -> ToTensor -> ImageNet Normalize
             self.transform = transforms.Compose([
-                transforms.Resize(256),              # Preserve aspect ratio
-                transforms.CenterCrop(config.IMAGE_SIZE),  # Standard 224×224 crop
+                transforms.Resize((config.IMAGE_SIZE, config.IMAGE_SIZE)),
                 transforms.ToTensor(),
                 transforms.Normalize(
                     mean=config.IMAGENET_MEAN,
@@ -258,6 +260,7 @@ class DiseaseEngine:
             img_flipped_tensor = self.transform(img_flipped).unsqueeze(0).to(self.device)
 
             # ── Run inference ─────────────────────────────────
+            t0 = time.perf_counter()
             with torch.no_grad():
                 out1 = self.model(img_tensor)
                 out2 = self.model(img_flipped_tensor)
@@ -269,6 +272,8 @@ class DiseaseEngine:
                 
                 top_probs, top_indices = torch.topk(
                     probabilities, min(top_k, self.num_classes))
+
+            inference_ms = (time.perf_counter() - t0) * 1000.0
 
             # ── Extract results ───────────────────────────────
             top_class = self.class_names[top_indices[0].item()]
@@ -306,12 +311,15 @@ class DiseaseEngine:
                 'confidence_level': confidence_level,
                 'top_predictions':  top_predictions,
                 'image_path':       image_path,
+                'model':            self._architecture,
+                'inference_ms':     round(inference_ms, 1),
             }
 
             logger.log_info(
                 "DISEASE",
-                f"Predicted: {top_class} ({top_confidence:.1f}%, "
-                f"{confidence_level})")
+                f"{self._architecture} -> {top_class} "
+                f"({top_confidence:.1f}%, {confidence_level}) "
+                f"| inference {inference_ms:.0f} ms")
             return result
 
         except Exception as e:

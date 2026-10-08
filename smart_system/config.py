@@ -149,6 +149,28 @@ ENSEMBLE_EARLY_EXIT_THRESHOLD: float = 0.85
 
 
 # ═══════════════════════════════════════════════════════════════
+# YIELD UNITS
+# ═══════════════════════════════════════════════════════════════
+
+# The trained XGBoost regressor emits TONNES/HECTARE (verified from its
+# outputs: Punjab rice -> ~2.2, UP sugarcane -> ~59).  The rest of the
+# system (thresholds, regional baselines, UI) works in FAO hg/ha, so the
+# conversion is applied explicitly, once, at the engine boundary.
+YIELD_MODEL_NATIVE_UNIT: str = 't/ha'
+YIELD_API_UNIT:          str = 'hg/ha'
+T_HA_TO_HG_HA:           float = 10000.0     # 1 t/ha = 10,000 hg/ha
+
+# ═══════════════════════════════════════════════════════════════
+# CROP ENSEMBLE WEIGHTS (soft voting)
+# ═══════════════════════════════════════════════════════════════
+# Weighted mean of the three calibrated estimators' predict_proba().
+# The saved model was trained with equal voting, so equal weights
+# reproduce its original behaviour exactly.
+CROP_ENSEMBLE_WEIGHTS: Dict[str, float] = {
+    'rf': 1 / 3, 'xgb': 1 / 3, 'lgb': 1 / 3,
+}
+
+# ═══════════════════════════════════════════════════════════════
 # YIELD THRESHOLDS
 # ═══════════════════════════════════════════════════════════════
 

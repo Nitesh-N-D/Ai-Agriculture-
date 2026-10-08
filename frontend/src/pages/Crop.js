@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
-import axios from 'axios';
+import apiClient, { errorMessage } from '../api/apiClient';
+import { useData } from '../context/DataContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
+import MLPanel from '../components/MLPanel';
 import { Droplets, CheckCircle, AlertTriangle, Loader2, Brain, Leaf, Sun, CloudRain, FlaskConical, Layers, Hexagon, Sprout } from 'lucide-react';
 
 const Crop = () => {
     const { t } = useTranslation();
+    const { refresh } = useData();
     const [formData, setFormData] = useState({
         Nitrogen: 90,
         Phosphorus: 40,
@@ -30,10 +33,11 @@ const Crop = () => {
         setResult(null);
 
         try {
-            const { data } = await axios.post('http://127.0.0.1:8000/predict-crop', formData);
+            const { data } = await apiClient.post('/predict-crop', formData);
             setResult(data);
+            refresh(); // new prediction -> dashboard / history / alerts update
         } catch (err) {
-            setError(err.response?.data?.error || 'Failed to initialize array.');
+            setError(errorMessage(err, 'Crop recommendation failed.'));
         } finally {
             setLoading(false);
         }
@@ -208,6 +212,17 @@ const Crop = () => {
                                         </div>
                                     )}
                                 </div>
+
+                                <MLPanel
+                                    title="Crop Recommendation - ML Ensemble"
+                                    rows={[
+                                        { label: 'Ensemble', value: 'Random Forest + XGBoost + LightGBM' },
+                                        { label: 'Method', value: result.ensemble?.method },
+                                        { label: 'Weights (RF / XGB / LGBM)', value: result.ensemble?.weights && Object.values(result.ensemble.weights).map(w => w.toFixed(2)).join(' / ') },
+                                        { label: 'Top-1 confidence', value: result.confidence !== undefined ? `${result.confidence.toFixed(1)}%` : null },
+                                        { label: 'Inference time', value: result.inference_ms !== undefined ? `${Math.round(result.inference_ms)} ms` : null },
+                                    ]}
+                                />
 
                                 {result.top_recommendations && result.top_recommendations.length > 0 && (
                                     <div className="mt-4 relative z-10 w-full mb-6">

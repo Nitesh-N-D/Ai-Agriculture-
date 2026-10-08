@@ -1,9 +1,8 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import axios from 'axios';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import apiClient, { errorMessage } from '../api/apiClient';
+import { TOKEN_KEY, UNAUTHORIZED_EVENT } from '../api/config';
 
 const AuthContext = createContext(null);
-
-const API_BASE = 'http://127.0.0.1:8000';
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(() => {
@@ -16,75 +15,86 @@ export const AuthProvider = ({ children }) => {
   });
 
   const [token, setToken] = useState(() => {
-    return localStorage.getItem('smart_farm_token') || null;
+    try {
+      return localStorage.getItem(TOKEN_KEY) || null;
+    } catch {
+      return null;
+    }
   });
 
   useEffect(() => {
-    if (user && token) {
-      localStorage.setItem('smart_farm_user', JSON.stringify(user));
-      localStorage.setItem('smart_farm_token', token);
-    } else {
-      localStorage.removeItem('smart_farm_user');
-      localStorage.removeItem('smart_farm_token');
+    try {
+      if (user && token) {
+        localStorage.setItem('smart_farm_user', JSON.stringify(user));
+        localStorage.setItem(TOKEN_KEY, token);
+      } else {
+        localStorage.removeItem('smart_farm_user');
+        localStorage.removeItem(TOKEN_KEY);
+      }
+    } catch {
+      // storage unavailable
     }
   }, [user, token]);
 
-  const login = async (username, password) => {
-    try {
-      const { data } = await axios.post(`${API_BASE}/auth/login`, {
-        username: username.trim(),
-        password: password
-      });
-
-      if (data.status === 'success') {
-        setUser(data.user);
-        setToken(data.token);
-        return { success: true, user: data.user, message: data.message };
-      }
-      return { success: false, message: data.message || 'Login failed' };
-    } catch (err) {
-      const msg = err.response?.data?.detail?.message || err.response?.data?.message || err.message || 'Login failed';
-      return { success: false, message: msg };
-    }
-  };
-
-  const register = async (username, password, fullName = '') => {
-    try {
-      const { data } = await axios.post(`${API_BASE}/auth/register`, {
-        username: username.trim(),
-        password: password,
-        full_name: fullName.trim()
-      });
-
-      if (data.status === 'success') {
-        setUser(data.user);
-        setToken(data.token);
-        return { success: true, user: data.user, message: data.message };
-      }
-      return { success: false, message: data.message || 'Sign up failed' };
-    } catch (err) {
-      const msg = err.response?.data?.detail?.message || err.response?.data?.message || err.message || 'Sign up failed';
-      return { success: false, message: msg };
-    }
-  };
-
-  const logout = () => {
+  const clearSession = useCallback(() => {
     setUser(null);
     setToken(null);
-    localStorage.removeItem('smart_farm_user');
-    localStorage.removeItem('smart_farm_token');
+    try {
+      localStorage.removeItem('smart_farm_user');
+      localStorage.removeItem(TOKEN_KEY);
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  // The API client fires this when the server rejects our token (expired / revoked).
+  useEffect(() => {
+    window.addEventListener(UNAUTHORIZED_EVENT, clearSession);
+    return () => window.removeEventListener(UNAUTHORIZED_EVENT, clearSession);
+  }, [clearSession]);
+
+  const authenticate = async (path, body, failMsg) => {
+    try {
+      const { data } = await apiClient.post(path, body);
+      if (data.status === 'success') {
+        // Store the token first so the very next request is already authenticated.
+        try {
+          localStorage.setItem(TOKEN_KEY, data.token);
+        } catch {
+          // ignore
+        }
+        setUser(data.user);
+        setToken(data.token);
+        return { success: true, user: data.user, message: data.message };
+      }
+      return { success: false, message: data.message || failMsg };
+    } catch (err) {
+      return { success: false, message: errorMessage(err, failMsg) };
+    }
+  };
+
+  const login = (username, password) =>
+    authenticate('/auth/login', { username: username.trim(), password }, 'Login failed');
+
+  const register = (username, password, fullName = '') =>
+    authenticate(
+      '/auth/register',
+      { username: username.trim(), password, full_name: fullName.trim() },
+      'Sign up failed'
+    );
+
+  const logout = async () => {
+    try {
+      await apiClient.post('/auth/logout');
+    } catch {
+      // the local session is cleared regardless
+    }
+    clearSession();
   };
 
   return (
     <AuthContext.Provider
-      value={{
-        user,
-        token,
-        isAuthenticated: !!user,
-        login,
-        register,
-        logout
-      }}
+      value={{ user, token, isAuthenticated: !!user && !!token, login, register, logout }}
     >
       {children}
     </AuthContext.Provider>

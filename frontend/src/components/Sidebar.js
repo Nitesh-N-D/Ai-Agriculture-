@@ -2,15 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
+import apiClient from '../api/apiClient';
+import { useData } from '../context/DataContext';
 import { useSettings } from '../context/SettingsContext';
 import {
   LayoutDashboard, Microscope, Sprout, TrendingUp, Bot,
-  FileText, Bell, Clock, Settings, Leaf, X,
+  FileText, Cpu, Bell, Clock, Settings, Leaf, X,
   Sun, CloudSun, Cloud, CloudRain, CloudDrizzle, CloudLightning,
   CloudSnow, CloudFog, Loader2, AlertCircle, MapPin
 } from 'lucide-react';
 
-const API_BASE = 'http://127.0.0.1:8000';
 
 const getWeatherIcon = (conditionCode) => {
   switch (conditionCode) {
@@ -45,6 +46,7 @@ const Sidebar = ({
   const location = useLocation();
   const { t } = useTranslation();
   const { farmLocation } = useSettings();
+  const { unreadAlerts } = useData();
 
   const [weather, setWeather] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -69,7 +71,7 @@ const Sidebar = ({
     const fetchWeather = async (isBackground = false) => {
       if (!isBackground) setLoading(true);
       try {
-        const response = await axios.get(`${API_BASE}/weather`, {
+        const response = await apiClient.get('/weather', {
           params: { location: farmLocation.trim() },
           signal: controller.signal,
           timeout: 10000
@@ -114,7 +116,8 @@ const Sidebar = ({
     { label: t('nav_yield'), path: '/yield', icon: TrendingUp, type: 'link' },
     { label: t('nav_assistant'), path: '/farm-assistant', icon: Bot, type: 'link' },
     { label: t('nav_report'), path: '/report', icon: FileText, type: 'link' },
-    { label: t('nav_alerts'), action: onOpenAlerts, icon: Bell, type: 'action', badge: '4' },
+    { label: 'ML Status', path: '/ml-status', icon: Cpu, type: 'link' },
+    { label: t('nav_alerts'), action: onOpenAlerts, icon: Bell, type: 'action', badge: unreadAlerts > 0 ? String(unreadAlerts > 99 ? '99+' : unreadAlerts) : null },
     { label: t('nav_history'), action: onOpenHistory, icon: Clock, type: 'action' },
     { label: t('nav_settings'), action: onOpenSettings, icon: Settings, type: 'action' },
   ];

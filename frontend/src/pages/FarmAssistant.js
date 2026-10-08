@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import axios from 'axios';
+import apiClient, { errorMessage } from '../api/apiClient';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { BrainCircuit, Send, User, Bot, Loader2, Sparkles } from 'lucide-react';
@@ -50,7 +50,7 @@ const FarmAssistant = () => {
         setLoading(true);
 
         try {
-            const { data } = await axios.post('http://127.0.0.1:8000/farm-assistant', {
+            const { data } = await apiClient.post('/farm-assistant', {
                 question: userMsg.text
             });
 
@@ -64,7 +64,7 @@ const FarmAssistant = () => {
             const errorMsg = {
                 id: Date.now() + 1,
                 sender: 'error',
-                text: err.response?.data?.error || "AI assistant is currently unavailable. Please try again later."
+                text: errorMessage(err, "AI assistant is currently unavailable. Please try again later.")
             };
             setMessages(prev => [...prev, errorMsg]);
         } finally {

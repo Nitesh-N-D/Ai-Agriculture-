@@ -10,10 +10,8 @@
   "nav_alerts": "எச்சரிக்கைகள்",
   "nav_history": "வரலாறு",
   "nav_settings": "அமைப்புகள்",
-
   "app_title": "ஸ்மார்ட் விவசாயம்",
   "app_subtitle": "AI அமைப்பு",
-
   "weather_location": "கோயம்புத்தூர், தமிழ்நாடு",
   "weather_condition": "லேசான மழை",
   "weather_humidity": "ஈரப்பதம்",
@@ -23,7 +21,6 @@
   "weather_unavailable": "வானிலை கிடைக்கவில்லை",
   "weather_set_location": "உங்கள் பண்ணை இருப்பிடத்தை அமைக்கவும்",
   "weather_configure_hint": "அமைப்புகளில் உள்ளமைக்க →",
-
   "header_welcome": "மீண்டும் வருக",
   "header_farmer": "விவசாயி",
   "header_subtitle": "இன்று உங்கள் பண்ணையில் என்ன நடக்கிறது என்பதை இங்கே காண்க.",
@@ -35,27 +32,20 @@
   "profile_verified_farmer": "சரிபார்க்கப்பட்ட விவசாயி",
   "profile_sign_out": "வெளியேறு",
   "profile_sign_in": "உள்நுழைக / பதிவு செய்க",
-
   "dash_disease_title": "AI நோய் கண்டறிதல் (சமீபத்தியது)",
   "dash_view_all": "அனைத்தையும் காண்க",
   "dash_disease_label": "நோய்",
-  "dash_disease_leaf_spot": "இலைப்புள்ளி நோய்",
   "dash_confidence": "நம்பகத்தன்மை",
   "dash_severity": "தீவிரம்",
   "dash_moderate": "மிதமானது",
   "dash_detected_on": "கண்டறியப்பட்ட தேதி",
   "dash_view_details": "விவரங்களைக் காண்க",
   "dash_upload_new": "புதிய படத்தை பதிவேற்றுக",
-
   "dash_crop_title": "முதல் 3 பயிர் பரிந்துரைகள்",
   "dash_crop_col_crop": "பயிர்",
   "dash_crop_col_score": "மதிப்பெண்",
   "dash_crop_col_suitability": "பொருத்தம்",
-  "dash_crop_maize": "மக்காச்சோளம்",
-  "dash_crop_sugarcane": "கரும்பு",
-  "dash_crop_cotton": "பருத்தி",
   "dash_btn_get_rec": "பரிந்துரையைப் பெறுக",
-
   "dash_yield_title": "விளைச்சல் கணிப்பு (இந்த பருவம்)",
   "dash_yield_predicted": "கணிக்கப்பட்ட விளைச்சல்",
   "dash_yield_tons_ha": "டன்/ஹெக்",
@@ -64,29 +54,11 @@
   "dash_yield_season": "பருவம்",
   "dash_yield_kharif": "கரீப் 2025",
   "dash_yield_model": "கணிப்பு மாதிரி: XGBoost Regressor",
-  "dash_yield_accuracy": "98.2% துல்லியம்",
-
   "dash_advisory_title": "AI ஆலோசனை (Gemini)",
-  "dash_adv_fert_title": "உரப் பரிந்துரை",
-  "dash_adv_fert_desc": "NPK 19:19:19 உரத்தை 120 கிலோ/ஹெக் அளவில் பிரித்து இடவும்.",
-  "dash_adv_prev_title": "நோய் தடுப்பு",
-  "dash_adv_prev_desc": "15 நாட்களுக்கு ஒருமுறை வேப்ப எண்ணெய் தெளிக்கவும்.",
-  "dash_adv_irri_title": "நீர்ப்பாசன ஆலோசனை",
-  "dash_adv_irri_desc": "மண் ஈரப்பதத்தின் அடிப்படையில் 5–6 நாட்களுக்கு ஒருமுறை நீர் பாய்ச்சவும்.",
   "dash_btn_ask_ai": "AI உதவியாளரிடம் கேட்கவும்",
-
   "dash_recent_activity": "சமீபத்திய செயல்பாடுகள்",
-  "dash_act_leaf_analyzed": "இலை படம் ஆய்வு செய்யப்பட்டது",
-  "dash_act_leaf_sub": "தக்காளி இலை",
-  "dash_act_crop_rec": "பயிர் பரிந்துரை உருவாக்கப்பட்டது",
-  "dash_act_crop_sub": "மக்காச்சோளம், கரும்பு, பருத்தி",
-  "dash_act_yield_comp": "விளைச்சல் கணிப்பு முடிந்தது",
-  "dash_act_yield_sub": "மக்காச்சோளம் - கரீப் 2025",
-  "dash_act_advisory_gen": "AI ஆலோசனை உருவாக்கப்பட்டது",
-  "dash_act_advisory_sub": "உரம் மற்றும் நீர்ப்பாசன வழிகாட்டல்",
   "dash_view_all_history": "அனைத்து வரலாற்றையும் காண்க",
   "dash_yesterday": "நேற்று",
-
   "dash_field_overview": "வயல் நலக் கண்ணோட்டம்",
   "dash_view_map": "வரைபடத்தைக் காண்க",
   "dash_healthy": "ஆரோக்கியமானது",
@@ -94,15 +66,10 @@
   "dash_high_risk": "அதிக ஆபத்து",
   "dash_inspect_parcels": "பகுதிகளை ஆய்வு செய்ய கிளிக் செய்யவும்",
   "dash_ndvi_res": "NDVI மல்டி-ஸ்பெக்ட்ரல் துல்லியம்: 10 மீ",
-
   "dash_disease_dist": "நோய் பரவல்",
   "dash_total": "மொத்தம்",
-  "dash_blight": "கருகல் நோய்",
-  "dash_powdery_mildew": "சாம்பல் நோய்",
-
   "dash_yield_trend": "விளைச்சல் போக்கு (கடந்த 6 பருவங்கள்)",
   "dash_tons_ha": "டன்/ஹெக்",
-
   "dash_system_status": "அமைப்பின் நிலை",
   "dash_ai_models": "AI மாதிரிகள்",
   "dash_data_sources": "தரவு மூலங்கள்",
@@ -111,11 +78,9 @@
   "dash_connected": "இணைக்கப்பட்டுள்ளது",
   "dash_healthy_status": "நலமாக உள்ளது",
   "dash_last_updated": "கடைசியாக புதுப்பிக்கப்பட்டது",
-
   "modal_alerts_title": "செயலில் உள்ள எச்சரிக்கைகள்",
   "modal_alerts_subtitle": "நிகழ்நேர விவசாய எச்சரிக்கைத் தூண்டுதல்கள் (4 செயலில்)",
   "modal_alerts_ack": "அனைத்தையும் உறுதிப்படுத்து",
-
   "modal_field_title": "செயற்கைக்கோள் ட்ரோன் வயல் கண்காணிப்பு",
   "modal_field_subtitle": "நிலப் பகுதி அளவீடு & தாவர வளர்ச்சி குறியீடு (NDVI)",
   "modal_field_select_parcel": "வயல் பகுதியைத் தேர்வு செய்க",
@@ -125,12 +90,10 @@
   "modal_field_avail_nitrogen": "கிடைக்கக்கூடிய நைட்ரஜன்",
   "modal_field_veg_health": "பயிர் ஆரோக்கியம்",
   "modal_field_close": "வரைபடத்தை மூடுக",
-
   "modal_hist_title": "பண்ணை செயல்பாட்டு வரலாறு",
   "modal_hist_subtitle": "AI கணிப்புகள் மற்றும் வயல் செயல்பாடுகளின் முழு பதிவு",
   "modal_hist_today": "இன்று",
   "modal_hist_close": "வரலாற்றை மூடுக",
-
   "modal_set_title": "விவசாய அமைப்பு அமைப்புகள்",
   "modal_set_subtitle": "பகுதி அளவீடுகள், அலகுகள் மற்றும் அறிவிப்புகளை நிர்வகிக்கவும்",
   "modal_set_region": "முதன்மை விவசாய பகுதி",
@@ -140,7 +103,6 @@
   "modal_set_telemetry_desc": "நேரலை வானிலை மற்றும் மண் சென்சார் புதுப்பிப்புகள்",
   "modal_set_cancel": "ரத்து செய்க",
   "modal_set_save": "விருப்பங்களைச் சேமி",
-
   "home_badge": "AI நுண்ணறிவு // துல்லிய விவசாயம்",
   "home_hero_title": "சிறந்த முறையில் விவசாயம் செய்யுங்கள்",
   "home_hero_title_accent": "Smart-Farm-Ai உடன்.",
@@ -153,7 +115,6 @@
   "home_crop_desc": "உங்கள் நிலத்திற்கான உகந்த பயிர்களை அறிய மண் மற்றும் வானிலை நிலைகளை உள்ளிடவும்.",
   "home_yield_title": "விளைச்சல் கணிப்பு",
   "home_yield_desc": "வரலாற்று தரவு மற்றும் காலநிலை மாதிரிகளைப் பயன்படுத்தி பருவ விளைச்சலைக் கணிக்கவும்.",
-
   "yield_page_title": "விளைச்சல் நுண்ணறிவு டாஷ்போர்டு",
   "yield_page_subtitle": "கணிப்பு · விளக்கம் · பரிந்துரை · ஒப்பீடு · எச்சரிக்கை",
   "yield_form_title": "உள்ளீட்டு அளவுருக்கள்",
@@ -197,7 +158,6 @@
   "severity_critical": "மிகத் தீவிரமானது",
   "severity_warning": "எச்சரிக்கை",
   "severity_info": "தகவல்",
-
   "disease_title": "AI தாவர மருத்துவர்",
   "disease_subtitle": "நுண்ணறிவு நோய் பகுப்பாய்வு & சிகிச்சை பரிந்துரைகள்",
   "disease_localization": "AI நோய் உள்ளூர்மயமாக்கல்",
@@ -216,7 +176,6 @@
   "disease_treatment_plan": "சிகிச்சை திட்டம்",
   "disease_differential_diagnosis": "வேறுபட்ட நோயறிதல்",
   "disease_similar_cases": "இதேபோன்ற வழக்குகள்",
-
   "report_title": "பண்ணை நுண்ணறிவு அறிக்கை",
   "report_subtitle": "விரிவான மண், பயிர் மற்றும் விளைச்சல் பகுப்பாய்வு.",
   "report_biosphere_metrics": "மண் & காலநிலைக் காரணிகள்",
@@ -242,14 +201,12 @@
   "report_yield_forecast": "விளைச்சல் கணிப்பு",
   "report_estimated_yield": "மதிப்பிடப்பட்ட விளைச்சல்",
   "report_yield_level": "விளைச்சல் நிலை",
-
   "assistant_title": "பண்ணை AI உதவியாளர்",
   "assistant_subtitle": "Gemini மூலம் இயக்கப்படுகிறது",
   "assistant_greeting": "வணக்கம்! நான் உங்கள் பண்ணை AI உதவியாளர். பயிர் நலம், மண் மேலாண்மை, உரங்கள் அல்லது பூச்சி கட்டுப்பாடு பற்றிய எந்தக் கேள்வியையும் கேளுங்கள்.",
   "assistant_analyzing": "ஆய்வு செய்கிறது...",
   "assistant_placeholder": "பயிர் நோய்கள், உரங்கள் அல்லது மண் பற்றிக் கேளுங்கள்...",
   "assistant_warning": "விவசாய ஆலோசனைகளை செயல்படுத்துவதற்கு முன் சரிபார்க்கவும்.",
-
   "crop_title": "ஸ்மார்ட் பயிர் பரிந்துரை",
   "crop_subtitle": "உங்கள் மண் மற்றும் காலநிலைக்கு உகந்த பயிர்களைக் கண்டறியவும்.",
   "crop_nitrogen": "நைட்ரஜன்",

@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
-import axios from 'axios';
+import apiClient, { errorMessage } from '../api/apiClient';
+import { useData } from '../context/DataContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import {
@@ -176,6 +177,7 @@ const TopPredictions = ({ predictions = [] }) => (
    MAIN COMPONENT: Disease Analysis Page
    ═══════════════════════════════════════════════════ */
 const Disease = () => {
+    const { refresh } = useData();
     const { t } = useTranslation();
     const [file, setFile] = useState(null);
     const [preview, setPreview] = useState(null);
@@ -217,14 +219,15 @@ const Disease = () => {
         formData.append('file', file);
 
         try {
-            const { data } = await axios.post('http://127.0.0.1:8000/plant-doctor', formData, {
+            const { data } = await apiClient.post('/plant-doctor', formData, {
                 headers: { 'Content-Type': 'multipart/form-data' },
                 timeout: 30000,
             });
             setResult(data);
             setImageView('original');
+            refresh(); // new prediction -> dashboard / history / alerts update
         } catch (err) {
-            setError(err.response?.data?.detail?.message || err.response?.data?.error || err.message || 'Analysis failed. Ensure the AI server is running.');
+            setError(errorMessage(err, 'Analysis failed. Ensure the AI server is running.'));
         } finally {
             setLoading(false);
         }
@@ -575,6 +578,12 @@ const Disease = () => {
                                         <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-xs font-bold tracking-wide text-slate-400">
                                             <Beaker className="w-3.5 h-3.5 text-blue-400" />
                                             {result.final_source || 'CNN Model'}
+                                        </span>
+
+                                        {/* ML model badge */}
+                                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 border border-sky-500/20 text-xs font-bold tracking-wide text-sky-300">
+                                            <Beaker className="w-3.5 h-3.5" />
+                                            Model: {result.model || 'EfficientNet-B0'}{result.gradcam_available ? ' · Grad-CAM' : ''}
                                         </span>
 
                                         {/* Status Badge */}

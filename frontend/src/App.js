@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-route
 import { AnimatePresence } from 'framer-motion';
 import { AuthProvider } from './context/AuthContext';
 import { SettingsProvider } from './context/SettingsContext';
+import { DataProvider } from './context/DataContext';
 
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
@@ -17,12 +18,22 @@ import Yield from './pages/Yield';
 import Report from './pages/Report';
 import FarmAssistant from './pages/FarmAssistant';
 import Login from './pages/Login';
+import ModelStatus from './pages/ModelStatus';
 
 const Layout = ({ children, onOpenAlerts, onOpenHistory, onOpenSettings }) => {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-[#070e09] text-slate-100 flex flex-col font-sans selection:bg-emerald-500/30 selection:text-white">
+    <div
+      className="min-h-screen bg-[#070e09] text-slate-100 flex flex-col font-sans selection:bg-emerald-500/30 selection:text-white"
+      style={{
+        backgroundImage: "url('/assets/farm_background.png')",
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundAttachment: 'fixed',
+        backgroundRepeat: 'no-repeat',
+      }}
+    >
       {/* Persistent Left Sidebar */}
       <Sidebar
         mobileOpen={mobileSidebarOpen}
@@ -86,6 +97,7 @@ function App() {
           <Route path="/yield" element={<Yield />} />
           <Route path="/report" element={<Report />} />
           <Route path="/farm-assistant" element={<FarmAssistant />} />
+          <Route path="/ml-status" element={<ModelStatus />} />
           <Route path="/login" element={<Login />} />
         </Routes>
       </AnimatePresence>
@@ -102,7 +114,9 @@ const AppWrapper = () => (
   <Router>
     <AuthProvider>
       <SettingsProvider>
-        <App />
+        <DataProvider>
+          <App />
+        </DataProvider>
       </SettingsProvider>
     </AuthProvider>
   </Router>

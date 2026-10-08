@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
-import axios from 'axios';
+import React, { useState, useEffect } from 'react';
+import apiClient, { errorMessage } from '../api/apiClient';
+import { useData } from '../context/DataContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { FileText, CheckCircle, AlertTriangle, Loader2, Map, Droplets, Sprout, Wheat } from 'lucide-react';
 
 const Report = () => {
+    const { refresh } = useData();
     const { t } = useTranslation();
     const [formData, setFormData] = useState({
         Nitrogen: 90,
@@ -14,10 +16,30 @@ const Report = () => {
         Humidity: 70,
         pH: 6.5,
         Rainfall: 200,
-        Area: 'India',
-        Crop: 'rice',
+        Area: 'Punjab',
+        Crop: 'Rice',
+        Season: 'Kharif',
         Year: 2024
     });
+    // States / crops / seasons come from the backend so they always match the trained yield model.
+    const [options, setOptions] = useState({ states: [], crops: [], seasons: [] });
+    const [optionsError, setOptionsError] = useState(null);
+    useEffect(() => {
+        let cancelled = false;
+        apiClient.get('/metadata')
+            .then(({ data }) => {
+                if (cancelled) return;
+                setOptions({ states: data.supported_states, crops: data.supported_crops, seasons: data.supported_seasons });
+                setFormData((p) => ({
+                    ...p,
+                    Area: data.supported_states.includes(p.Area) ? p.Area : data.supported_states[0] || '',
+                    Crop: data.supported_crops.includes(p.Crop) ? p.Crop : data.supported_crops[0] || '',
+                    Season: data.supported_seasons.includes(p.Season) ? p.Season : data.supported_seasons[0] || '',
+                }));
+            })
+            .catch((e) => !cancelled && setOptionsError(errorMessage(e, 'Could not load the list of supported states and crops.')));
+        return () => { cancelled = true; };
+    }, []);
     const [loading, setLoading] = useState(false);
     const [result, setResult] = useState(null);
     const [error, setError] = useState(null);
@@ -42,12 +64,13 @@ const Report = () => {
         }
 
         try {
-            const { data } = await axios.post('http://127.0.0.1:8000/smart-report', payload, {
+            const { data } = await apiClient.post('/smart-report', payload, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
             setResult(data.smart_report);
+            refresh();
         } catch (err) {
-            setError(err.response?.data?.error || 'Failed to initialize system core.');
+            setError(errorMessage(err, 'Report generation failed.'));
         } finally {
             setLoading(false);
         }
@@ -125,20 +148,29 @@ const Report = () => {
                                     <Map className="w-4 h-4 text-amber-400" /> {t('report_location_details')}
                                 </h3>
                             </div>
+                            {optionsError && <p className="col-span-2 text-xs text-rose-300">{optionsError}</p>}
                             {[
-                                { name: 'Area', label: t('report_area') },
-                                { name: 'Crop', label: t('report_crop') },
-                                { name: 'Year', label: t('report_year') }
+                                { name: 'Area', label: t('report_area'), options: options.states },
+                                { name: 'Crop', label: t('report_crop'), options: options.crops },
+                                { name: 'Season', label: 'Season', options: options.seasons },
                             ].map(f => (
                                 <div key={f.name}>
                                     <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5 px-1">{f.label}</label>
-                                    <input
-                                        type={f.name === 'Year' ? 'number' : 'text'} name={f.name} value={formData[f.name]}
-                                        onChange={handleChange} required
-                                        className="w-full px-3 py-2.5 rounded-xl border border-[#1a3624] bg-[#0c1810] text-slate-100 placeholder-slate-500 focus:outline-none focus:border-emerald-500 text-center font-mono text-xs uppercase"
-                                    />
+                                    <select
+                                        name={f.name} value={formData[f.name]} onChange={handleChange} required
+                                        className="w-full px-3 py-2.5 rounded-xl border border-[#1a3624] bg-[#0c1810] text-slate-100 focus:outline-none focus:border-emerald-500 text-center font-mono text-xs"
+                                    >
+                                        {f.options.map(o => <option key={o} value={o}>{o}</option>)}
+                                    </select>
                                 </div>
                             ))}
+                            <div>
+                                <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5 px-1">{t('report_year')}</label>
+                                <input
+                                    type="number" name="Year" value={formData.Year} onChange={handleChange} required
+                                    className="w-full px-3 py-2.5 rounded-xl border border-[#1a3624] bg-[#0c1810] text-slate-100 focus:outline-none focus:border-emerald-500 text-center font-mono text-xs"
+                                />
+                            </div>
                         </div>
 
                         <div className="pt-4">

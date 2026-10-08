@@ -117,6 +117,38 @@ class CropEngine:
         self.label_encoder = None
         self._loaded: bool = False
         self._num_crops: int = 0
+        self._voter = None                       # fitted VotingClassifier
+        self.weights: Dict[str, float] = dict(config.CROP_ENSEMBLE_WEIGHTS)
+
+    # ── Ensemble weights ─────────────────────────────────────
+    def set_weights(self, weights: Dict[str, float]) -> Dict[str, float]:
+        """
+        Set soft-voting weights (keys: rf, xgb, lgb). They are normalised
+        to sum to 1 and used by every subsequent predict() call.
+        """
+        keys = {name for name, _ in self._voter.estimators}
+        if set(weights) != keys:
+            raise ValueError(f"weights must have exactly the keys {sorted(keys)}")
+        if any(w < 0 for w in weights.values()) or sum(weights.values()) <= 0:
+            raise ValueError("weights must be non-negative with a positive sum")
+        total = float(sum(weights.values()))
+        self.weights = {k: float(v) / total for k, v in weights.items()}
+        logger.log_info("CROP", f"Ensemble weights set: {self.weights}")
+        return dict(self.weights)
+
+    def describe(self) -> Dict:
+        """Static description of the loaded model (for /health, /ml/status)."""
+        return {
+            'loaded':  self._loaded,
+            'type':    'RF + XGBoost + LightGBM (calibrated soft-voting)',
+            'members': {
+                name: type(getattr(est, 'estimator', est)).__name__
+                for name, est in (self._voter.estimators if self._voter else [])
+            } if self._voter else {},
+            'weights': dict(self.weights),
+            'n_classes': self._num_crops,
+            'n_features': len(FEATURE_COLUMNS),
+        }
 
     def load(self) -> bool:
         """
@@ -165,6 +197,22 @@ class CropEngine:
             self.label_encoder = joblib.load(config.CROP_ENCODER_PATH)
 
             self._num_crops = len(self.label_encoder.classes_)
+
+            # Locate the fitted VotingClassifier so each member's
+            # probabilities can be combined with the configured weights.
+            voter = (self.model.named_steps['model']
+                     if hasattr(self.model, 'named_steps') else self.model)
+            if not hasattr(voter, 'estimators_'):
+                raise RuntimeError(
+                    "Crop model is not a fitted VotingClassifier")
+            self._voter = voter
+
+            # Feature-order guard: inference columns must equal training.
+            trained = getattr(self.model, 'feature_names_in_', None)
+            if trained is not None and list(trained) != FEATURE_COLUMNS:
+                raise RuntimeError(
+                    "Inference feature order differs from training: "
+                    f"{list(trained)} != {FEATURE_COLUMNS}")
             self._loaded = True
 
             elapsed = time.time() - load_start
@@ -251,23 +299,37 @@ class CropEngine:
             data = _engineer_features(data)
             data = data[FEATURE_COLUMNS]
 
-            # Predict
-            pred_encoded = self.model.predict(data)
-            crop_name = self.label_encoder.inverse_transform(
-                pred_encoded)[0]
-
-            # Get probabilities
-            probabilities = self.model.predict_proba(data)[0]
+            t0 = time.perf_counter()
             classes = self.label_encoder.classes_
 
-            # Top-K predictions
-            top_indices = np.argsort(probabilities)[::-1][:top_k]
-            top_predictions: List[Tuple[str, float]] = [
-                (classes[i], float(probabilities[i] * 100))
-                for i in top_indices
-            ]
+            # Per-model probabilities (RF, XGB, LGBM — each calibrated)
+            member_probs = {
+                name: est.predict_proba(data)[0]
+                for (name, _), est in zip(self._voter.estimators,
+                                          self._voter.estimators_)
+            }
+            # Weighted soft voting: sum_i w_i * P_i
+            probabilities = sum(
+                self.weights[name] * p for name, p in member_probs.items())
+            inference_ms = (time.perf_counter() - t0) * 1000.0
 
-            confidence = top_predictions[0][1]
+            def _top(probs, k):
+                idx = np.argsort(probs)[::-1][:k]
+                return [(classes[i], float(probs[i] * 100)) for i in idx]
+
+            top_predictions: List[Tuple[str, float]] = _top(
+                probabilities, top_k)
+            crop_name, confidence = top_predictions[0]
+            member_names = {'rf': 'RandomForest', 'xgb': 'XGBoost',
+                            'lgb': 'LightGBM'}
+            models_out = {
+                member_names.get(n, n): {
+                    'weight': round(self.weights[n], 4),
+                    'top_predictions': [
+                        {'crop': c, 'confidence': round(p, 2)}
+                        for c, p in _top(pr, 3)],
+                } for n, pr in member_probs.items()
+            }
 
             prediction_summary = {
                 'top_crop': crop_name,
@@ -282,11 +344,21 @@ class CropEngine:
                 'top_predictions': top_predictions,
                 'input_data':      input_data,
                 'ai_advice':       ai_advice,
+                'models':          models_out,
+                'ensemble': {
+                    'method':  'weighted soft voting',
+                    'weights': {member_names.get(k, k): round(v, 4)
+                                for k, v in self.weights.items()},
+                    'top_3':   [{'crop': c, 'confidence': round(p, 2)}
+                                for c, p in top_predictions[:3]],
+                },
+                'inference_ms':    round(inference_ms, 1),
             }
 
             logger.log_info(
                 "CROP",
-                f"Recommended: {crop_name} ({confidence:.1f}%)")
+                f"Ensemble prediction: {crop_name} ({confidence:.1f}%) "
+                f"| inference {inference_ms:.0f} ms")
             return result
 
         except Exception as e:

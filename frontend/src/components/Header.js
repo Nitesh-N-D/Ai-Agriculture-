@@ -2,10 +2,13 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, Bell, Globe, ChevronDown, Menu, LogOut, User } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useData } from '../context/DataContext';
+import { timeAgo, SEVERITY_STYLE } from '../utils/format';
 import { useTranslation } from 'react-i18next';
 
 const Header = ({ onToggleSidebar, onOpenAlerts }) => {
-  const { user, logout } = useAuth();
+  const { user, logout, isAuthenticated } = useAuth();
+  const { unreadAlerts, alerts, status: dataStatus } = useData();
   const { t, i18n } = useTranslation();
   const navigate = useNavigate();
 
@@ -131,33 +134,35 @@ const Header = ({ onToggleSidebar, onOpenAlerts }) => {
             className="relative p-2.5 rounded-xl bg-[#0e1c13] border border-[#1a3624] text-slate-300 hover:text-white hover:border-[#234d32] transition-all"
           >
             <Bell className="w-4 h-4" />
-            <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 text-white text-[10px] font-bold flex items-center justify-center shadow-[0_0_8px_rgba(16,185,129,0.7)]">
-              3
-            </span>
+            {unreadAlerts > 0 && (
+              <span className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full bg-emerald-500 text-white text-[10px] font-bold flex items-center justify-center shadow-[0_0_8px_rgba(16,185,129,0.7)]">
+                {unreadAlerts > 99 ? '99+' : unreadAlerts}
+              </span>
+            )}
           </button>
 
           {showNotifMenu && (
             <div className="absolute right-0 top-full mt-2 w-72 sm:w-80 bg-[#0e1c13] border border-[#1a3624] rounded-2xl shadow-2xl p-3 z-50 text-xs">
               <div className="flex items-center justify-between pb-2 mb-2 border-b border-[#183120]">
                 <span className="font-bold text-white">{t('notifications')}</span>
-                <span className="text-[10px] text-emerald-400 font-semibold">3 {t('notifications_new')}</span>
+                <span className="text-[10px] text-emerald-400 font-semibold">{unreadAlerts} {t('notifications_new')}</span>
               </div>
               <div className="space-y-2">
-                <div className="p-2 rounded-xl bg-[#122418] border border-[#1b3a26]">
-                  <div className="font-semibold text-emerald-300">Soil Moisture Optimal</div>
-                  <div className="text-[11px] text-slate-400">Sector 1 moisture calibrated at 78%.</div>
-                  <div className="text-[9px] text-slate-500 mt-1">10 mins ago</div>
-                </div>
-                <div className="p-2 rounded-xl bg-[#122418] border border-[#1b3a26]">
-                  <div className="font-semibold text-amber-300">Leaf Spot Detected</div>
-                  <div className="text-[11px] text-slate-400">Moderate leaf spot flagged on Tomato.</div>
-                  <div className="text-[9px] text-slate-500 mt-1">1 hour ago</div>
-                </div>
-                <div className="p-2 rounded-xl bg-[#122418] border border-[#1b3a26]">
-                  <div className="font-semibold text-sky-300">Yield Forecast Updated</div>
-                  <div className="text-[11px] text-slate-400">Maize projected harvest set at 2.45 t/ha.</div>
-                  <div className="text-[9px] text-slate-500 mt-1">3 hours ago</div>
-                </div>
+                {!isAuthenticated && (
+                  <p className="text-[11px] text-slate-400 py-2 text-center">Sign in to see alerts for your farm.</p>
+                )}
+                {isAuthenticated && alerts.length === 0 && (
+                  <p className="text-[11px] text-slate-400 py-2 text-center">
+                    {dataStatus === 'ready' ? 'No alerts at this time.' : 'Loading alerts...'}
+                  </p>
+                )}
+                {isAuthenticated && alerts.slice(0, 3).map((a) => (
+                  <div key={a.id} className="p-2 rounded-xl bg-[#122418] border border-[#1b3a26]">
+                    <div className={`font-semibold ${(SEVERITY_STYLE[a.severity] || SEVERITY_STYLE.low).text}`}>{a.title}</div>
+                    <div className="text-[11px] text-slate-400">{a.message}</div>
+                    <div className="text-[9px] text-slate-500 mt-1">{timeAgo(a.timestamp)}</div>
+                  </div>
+                ))}
               </div>
               <button
                 onClick={() => {

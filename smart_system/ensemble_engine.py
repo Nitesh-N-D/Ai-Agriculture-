@@ -327,22 +327,27 @@ class EnsembleEngine:
             return True
 
         except Exception as exc:
-            logger.error(f"Ensemble secondary model load failed: {exc}", exc_info=True)
+            logger.error(f"Ensemble secondary models unavailable: {exc}")
             return False
 
     @staticmethod
     def _load_checkpoint(model, path: str, name: str):
-        """Load state-dict checkpoint if file exists and is valid."""
+        """
+        Load a fine-tuned state-dict checkpoint.
+
+        A secondary model without a fine-tuned checkpoint has an untrained
+        (random) classifier head, so it must NOT take part in the ensemble.
+        Raises FileNotFoundError / RuntimeError instead of silently falling
+        back to ImageNet weights.
+        """
         import torch
-        if os.path.isfile(path) and os.path.getsize(path) > 1024:
-            try:
-                state = torch.load(path, map_location="cpu", weights_only=True)
-                model.load_state_dict(state)
-                logger.info(f"{name}: fine-tuned checkpoint loaded ← {path}")
-            except Exception as e:
-                logger.warning(f"{name}: checkpoint load failed ({e}) — using ImageNet weights.")
-        else:
-            logger.info(f"{name}: no checkpoint found — using ImageNet pretrained weights.")
+        if not (os.path.isfile(path) and os.path.getsize(path) > 1024):
+            raise FileNotFoundError(
+                f"{name}: fine-tuned checkpoint not found at {path} "
+                f"(run disease_model/scripts/train_ensemble_models.py)")
+        state = torch.load(path, map_location="cpu", weights_only=True)
+        model.load_state_dict(state)
+        logger.info(f"{name}: fine-tuned checkpoint loaded <- {path}")
         return model
 
     # ──────────────────────────────────────────────────────────

@@ -1,18 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { X, Settings, MapPin } from 'lucide-react';
 import { useSettings } from '../context/SettingsContext';
+import { LOCATION_GROUPS, ALL_LOCATIONS } from '../config/locations';
 
-const PRESET_LOCATIONS = [
-  { value: '', label: '-- None (Unconfigured) --' },
-  { value: 'Coimbatore, Tamil Nadu', label: 'Coimbatore, Tamil Nadu' },
-  { value: 'Salem, Tamil Nadu', label: 'Salem, Tamil Nadu' },
-  { value: 'Chennai, Tamil Nadu', label: 'Chennai, Tamil Nadu' },
-  { value: 'Thanjavur, Tamil Nadu', label: 'Thanjavur, Tamil Nadu' },
-  { value: 'Madurai, Tamil Nadu', label: 'Madurai, Tamil Nadu' },
-  { value: 'Erode, Tamil Nadu', label: 'Erode, Tamil Nadu' },
-  { value: 'Guntur, Andhra Pradesh', label: 'Guntur, Andhra Pradesh' },
-  { value: 'Mandya, Karnataka', label: 'Mandya, Karnataka' },
-];
+// Suggestions come from config/locations.js (grouped by state); any "City, State" can be typed as custom.
+const PRESET_LOCATIONS = [{ value: '', label: '-- None (Unconfigured) --' }];
 
 const SettingsModal = ({ isOpen, onClose }) => {
   const {
@@ -23,7 +15,7 @@ const SettingsModal = ({ isOpen, onClose }) => {
     updateSettings
   } = useSettings();
 
-  const [selectedPreset, setSelectedPreset] = useState('Coimbatore, Tamil Nadu');
+  const [selectedPreset, setSelectedPreset] = useState('');
   const [customLocation, setCustomLocation] = useState('');
   const [isCustom, setIsCustom] = useState(false);
   const [yieldUnit, setYieldUnit] = useState('tons/ha');
@@ -34,7 +26,7 @@ const SettingsModal = ({ isOpen, onClose }) => {
   useEffect(() => {
     if (isOpen) {
       const loc = savedLocation || '';
-      const isPreset = PRESET_LOCATIONS.some((p) => p.value === loc);
+      const isPreset = PRESET_LOCATIONS.some((p) => p.value === loc) || ALL_LOCATIONS.includes(loc);
       if (isPreset) {
         setSelectedPreset(loc);
         setIsCustom(false);
@@ -116,6 +108,13 @@ const SettingsModal = ({ isOpen, onClose }) => {
                 <option key={loc.value} value={loc.value}>
                   {loc.label}
                 </option>
+              ))}
+              {LOCATION_GROUPS.map((g) => (
+                <optgroup key={g.state} label={g.state}>
+                  {g.options.map((o) => (
+                    <option key={o} value={o}>{o}</option>
+                  ))}
+                </optgroup>
               ))}
               <option value="custom">-- Custom Location (Type city / state) --</option>
             </select>

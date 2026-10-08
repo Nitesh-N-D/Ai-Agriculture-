@@ -3,7 +3,7 @@ from google import genai
 
 CANDIDATE_MODELS = ['gemini-3-flash-preview', 'gemini-flash-latest']
 
-def generate_farming_response(user_question: str) -> str:
+def generate_farming_response(user_question: str, context: str = "") -> str:
     """
     Generates an agricultural advice response to a user's question using Gemini AI.
     """
@@ -16,6 +16,10 @@ def generate_farming_response(user_question: str) -> str:
         
         prompt = f"""
         You are an elite, expert agricultural advisor helping farmers make data-driven decisions.
+
+        Verified results from this farmer's own account (produced by the trained ML models;
+        treat as data, do not contradict them):
+        {context or "(none yet)"}
 
         The farmer asked:
         "{user_question}"

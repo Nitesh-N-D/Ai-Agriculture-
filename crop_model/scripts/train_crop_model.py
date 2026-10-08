@@ -206,7 +206,10 @@ print("   ✅ Pipeline: [CalibratedEnsemble] (no scaler)")
 # ═══════════════════════════════════════════════════════════════
 
 print("\n📈 Stratified Cross-Validation...")
-cv_scores = np.array([0.9955, 0.9898, 0.9920, 0.9945, 0.9872])
+# Real stratified k-fold CV on the training split (previously hard-coded).
+skf = StratifiedKFold(n_splits=CV_FOLDS, shuffle=True, random_state=RANDOM_STATE)
+cv_scores = cross_val_score(pipeline, X_train, y_train, cv=skf,
+                            scoring='accuracy', n_jobs=1)
 print(f"   Mean Accuracy: {cv_scores.mean():.4f} ± {cv_scores.std():.4f}")
 
 

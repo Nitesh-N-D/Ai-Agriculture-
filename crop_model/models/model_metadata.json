@@ -56,10 +56,11 @@
     "watermelon"
   ],
   "test_accuracy": 0.9955,
-  "cv_mean_accuracy": 0.9918,
-  "cv_std": 0.003,
+  "cv_mean_accuracy": 0.9909,
+  "cv_std": 0.0055,
   "f1_macro": 0.9954,
   "train_samples": 1760,
   "test_samples": 440,
-  "phase": "2"
+  "phase": "2",
+  "cv_note": "Real stratified 5-fold CV on the training split (crop_model/scripts/evaluate_crop_model.py). Earlier values were hard-coded."
 }

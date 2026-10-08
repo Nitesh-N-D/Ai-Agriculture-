@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import apiClient, { errorMessage } from '../api/apiClient';
+import { useData } from '../context/DataContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Wheat, Loader2, AlertTriangle, CheckCircle, TrendingUp, TrendingDown,
@@ -11,6 +13,7 @@ import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer
 } from 'recharts';
+import MLPanel from '../components/MLPanel';
 
 const dynamicTranslations = {
   // Explanation Keys
@@ -43,25 +46,8 @@ const dynamicTranslations = {
   YIELD_ABOVE_REGIONAL_AVERAGE: "Yield is tracking above regional averages."
 };
 
-// ─── Data ───────────────────────────────────────────────────────────────────
-
-const CROPS = [
-  'Rice', 'Wheat', 'Maize', 'Barley', 'Bajra', 'Jowar', 'Sugarcane',
-  'Cotton(lint)', 'Groundnut', 'Soyabean', 'Sunflower', 'Potato',
-  'Onion', 'Banana', 'Coconut', 'Arhar/Tur', 'Gram', 'Jute',
-  'Turmeric', 'Ginger', 'Ragi', 'Linseed', 'Sesamum'
-];
-
-const STATES = [
-  'Andhra Pradesh', 'Assam', 'Bihar', 'Chhattisgarh', 'Gujarat',
-  'Haryana', 'Himachal Pradesh', 'Jammu and Kashmir', 'Jharkhand',
-  'Karnataka', 'Kerala', 'Madhya Pradesh', 'Maharashtra', 'Manipur',
-  'Meghalaya', 'Mizoram', 'Nagaland', 'Odisha', 'Punjab', 'Rajasthan',
-  'Sikkim', 'Tamil Nadu', 'Telangana', 'Tripura', 'Uttar Pradesh',
-  'Uttarakhand', 'West Bengal'
-];
-
-const SEASONS = ['Kharif', 'Rabi', 'Whole Year', 'Autumn', 'Summer', 'Winter'];
+// Crop / state / season options are loaded from the backend (GET /metadata) so the
+// form can never offer something the trained model does not support.
 
 // ─── Helper components ────────────────────────────────────────────────────────
 
@@ -526,6 +512,26 @@ const RiskCard = ({ risk }) => {
 const Yield = () => {
   const { t } = useTranslation();
   const [formData, setFormData] = useState({ crop: 'Rice', state: 'Punjab', season: 'Kharif', year: 2022 });
+  const { refresh } = useData();
+  const [options, setOptions] = useState({ crops: [], states: [], seasons: [] });
+  const [optionsError, setOptionsError] = useState(null);
+  useEffect(() => {
+    let cancelled = false;
+    apiClient.get('/metadata')
+      .then(({ data }) => {
+        if (cancelled) return;
+        setOptions({ crops: data.supported_crops, states: data.supported_states, seasons: data.supported_seasons });
+        // keep the current selection only if the model supports it
+        setFormData((p) => ({
+          ...p,
+          crop: data.supported_crops.includes(p.crop) ? p.crop : data.supported_crops[0] || '',
+          state: data.supported_states.includes(p.state) ? p.state : data.supported_states[0] || '',
+          season: data.supported_seasons.includes(p.season) ? p.season : data.supported_seasons[0] || '',
+        }));
+      })
+      .catch((e) => !cancelled && setOptionsError(errorMessage(e, 'Could not load model options.')));
+    return () => { cancelled = true; };
+  }, []);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   const [error, setError] = useState(null);
@@ -541,16 +547,11 @@ const Yield = () => {
     setError(null);
     setResult(null);
     try {
-      const res = await fetch('http://127.0.0.1:8000/predict-yield-v2/full', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data?.detail?.message || data?.detail || 'Prediction failed');
+      const { data } = await apiClient.post('/predict-yield-v2/full', formData);
       setResult(data);
+      refresh(); // new prediction -> dashboard / history / alerts update
     } catch (err) {
-      setError(err.message || 'Failed to connect to AI API.');
+      setError(errorMessage(err, 'Yield prediction failed.'));
     } finally {
       setLoading(false);
     }
@@ -588,11 +589,12 @@ const Yield = () => {
             <div className="absolute inset-0 bg-amber-500/5 blur-[60px] pointer-events-none" />
             <form onSubmit={handlePredict} className="relative z-10 space-y-5">
               <SectionLabel icon={Wheat} text={t('yield_form_title')} />
+              {optionsError && <p className="text-xs text-rose-300">{optionsError}</p>}
 
               {[
-                { label: t('yield_form_crop'), name: 'crop', options: CROPS },
-                { label: t('yield_form_state'), name: 'state', options: STATES },
-                { label: t('yield_form_season'), name: 'season', options: SEASONS },
+                { label: t('yield_form_crop'), name: 'crop', options: options.crops },
+                { label: t('yield_form_state'), name: 'state', options: options.states },
+                { label: t('yield_form_season'), name: 'season', options: options.seasons },
               ].map(({ label, name, options }) => (
                 <div key={name}>
                   <label className="block text-[9px] font-bold text-slate-500 uppercase tracking-widest mb-2">{label}</label>
@@ -659,6 +661,16 @@ const Yield = () => {
 
                 {/* Row 1: Yield hero */}
                 <YieldHeroCard result={result} />
+                <MLPanel
+                  title="Yield Forecast - ML Regression"
+                  rows={[
+                    { label: 'Model', value: result.model || 'XGBoost Regressor' },
+                    { label: 'Raw model output', value: result.raw_model_output !== undefined ? `${Number(result.raw_model_output).toFixed(3)} ${result.raw_model_unit}` : null },
+                    { label: 'Reported yield', value: `${Number(result.predicted_yield).toLocaleString(undefined, { maximumFractionDigits: 0 })} ${result.yield_unit || 'hg/ha'}` },
+                    { label: 'Yield level', value: result.yield_level },
+                    { label: 'Inference time', value: result.inference_ms !== undefined ? `${Math.round(result.inference_ms)} ms` : null },
+                  ]}
+                />
 
                 {/* Row 2: Comparison + Trend side by side on large screens */}
                 <div className="grid md:grid-cols-2 gap-5">

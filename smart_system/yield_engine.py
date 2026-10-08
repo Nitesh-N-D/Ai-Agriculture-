@@ -1,7 +1,7 @@
 """
 Yield Prediction Engine — Smart Agriculture System v2.0
 =========================================================
-Loads the trained RandomForestRegressor and predicts crop yield.
+Loads the trained XGBoost regressor and predicts crop yield.
 Handles both new (LabelEncoder) and legacy (get_dummies) formats.
 
 Features
@@ -32,7 +32,7 @@ class YieldEngine:
     """
     Yield Prediction Engine.
 
-    Loads the trained RandomForestRegressor and optional
+    Loads the trained XGBoost regressor and optional
     LabelEncoders for area/crop encoding.
 
     Attributes
@@ -262,19 +262,15 @@ class YieldEngine:
                 input_df[f] = 0
         input_df = input_df[self.features]
 
-        # Predict
-        predicted_yield = float(self.model.predict(input_df)[0])
+        # Predict (model's native unit is t/ha) -> explicit conversion to hg/ha
+        t0 = time.perf_counter()
+        raw_t_ha = float(self.model.predict(input_df)[0])
+        inference_ms = (time.perf_counter() - t0) * 1000.0
+        predicted_yield = raw_t_ha * config.T_HA_TO_HG_HA
 
-        # Y1 — Uncertainty: std of individual tree predictions
-        try:
-            import numpy as np
-            tree_preds = np.array([
-                tree.predict(input_df.values)[0]
-                for tree in self.model.estimators_
-            ])
-            yield_uncertainty = round(float(np.std(tree_preds)), 2)
-        except Exception:
-            yield_uncertainty = None
+        # XGBoost has no per-tree spread like a random forest, so no
+        # uncertainty interval is reported (never fabricated).
+        yield_uncertainty = None
 
         yield_level = self._classify_yield(predicted_yield, crop)
 
@@ -282,16 +278,21 @@ class YieldEngine:
             'success':           True,
             'predicted_yield':   predicted_yield,
             'yield_uncertainty': yield_uncertainty,   # ± hg/ha
-            'yield_unit':        'hg/ha',             # FAO standard
+            'yield_unit':        config.YIELD_API_UNIT,   # hg/ha (FAO)
+            'raw_model_output':  raw_t_ha,
+            'raw_model_unit':    config.YIELD_MODEL_NATIVE_UNIT,
+            'model':             'XGBoost Regressor',
             'yield_level':       yield_level,
             'area':              area,
             'crop':              crop,
             'year':              year,
+            'inference_ms':      round(inference_ms, 1),
         }
 
         logger.log_info(
             "YIELD",
-            f"Predicted: {predicted_yield:,.2f} ±{yield_uncertainty} ({yield_level})")
+            f"XGBoost: {raw_t_ha:.3f} t/ha = {predicted_yield:,.0f} hg/ha "
+            f"({yield_level}) | inference {inference_ms:.0f} ms")
         return result
 
     def _predict_legacy(

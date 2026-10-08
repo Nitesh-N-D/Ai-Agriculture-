@@ -5,6 +5,10 @@ const mockAxios = {
   delete: jest.fn(() => Promise.resolve({ data: {} })),
   isCancel: jest.fn(() => false),
   create: jest.fn(() => mockAxios),
+  interceptors: {
+    request: { use: jest.fn() },
+    response: { use: jest.fn() },
+  },
 };
 
 export default mockAxios;

@@ -60,6 +60,7 @@ from smart_system.recommendations import RecommendationEngine
 from smart_system.farm_ai_assistant import generate_farming_response
 from smart_system.database import create_user, authenticate_user, get_user_by_username, update_user_settings
 from smart_system.yield_predictor.weather import get_state_coordinates
+from smart_system import history_store, alerts_engine
 
 # ══════════════════════════════════════════════════════════════
 # PART 6 — LOGGING SYSTEM
@@ -215,7 +216,7 @@ def startup():
                 _ensemble_loaded = True
                 log_info("Ensemble Engine (ResNet-50 + EfficientNet-B1) loaded [OK]")
             else:
-                log_error("Ensemble secondary model load returned False ⚠️")
+                log_info("Secondary ensemble not available - using EfficientNet-B0 only")
                 ensemble_engine = None
         except Exception as e:
             log_error(f"Ensemble Engine init failed: {e}")
@@ -446,7 +447,7 @@ class LoginRequest(BaseModel):
     password: str
 
 class UserSettingsRequest(BaseModel):
-    username: str
+    username: Optional[str] = None   # ignored; identity comes from the bearer token
     farm_location: Optional[str] = None
     settings: Optional[dict] = None
 
@@ -477,7 +478,7 @@ def register_user(req: RegisterRequest):
             password=req.password,
             full_name=req.full_name
         )
-        token = f"sfa_{secrets.token_urlsafe(32)}"
+        token = history_store.create_session(user["id"])
         return {
             "status": "success",
             "message": "Account created successfully!",
@@ -515,7 +516,7 @@ def login_user(req: LoginRequest):
                 detail={"status": "error", "message": "Incorrect password. Please try again."}
             )
 
-    token = f"sfa_{secrets.token_urlsafe(32)}"
+    token = history_store.create_session(user["id"])
     return {
         "status": "success",
         "message": "Login successful!",
@@ -525,40 +526,222 @@ def login_user(req: LoginRequest):
 
 
 @app.get("/auth/me")
-def get_user_profile(username: str):
-    """Retrieve profile data for the active user."""
-    user = get_user_by_username(username)
-    if not user:
-        raise HTTPException(status_code=404, detail={"status": "error", "message": "User not found"})
+def get_user_profile(request: Request):
+    """Profile of the user identified by the bearer token."""
+    user = _require_user(request)
     return {"status": "success", "user": user}
 
 
 @app.put("/auth/settings")
-def save_user_settings(req: UserSettingsRequest):
-    """Save user farm location and application preferences."""
-    log_request("/auth/settings", {"username": req.username, "farm_location": req.farm_location})
-    if not req.username:
-        raise HTTPException(status_code=400, detail={"status": "error", "message": "Username is required"})
-    updated = update_user_settings(req.username, farm_location=req.farm_location, settings=req.settings)
+def save_user_settings(req: UserSettingsRequest, request: Request):
+    """Save farm location / preferences for the authenticated user (token, not client-sent id)."""
+    user = _require_user(request)
+    log_request("/auth/settings", {"user_id": user["id"], "farm_location": req.farm_location})
+    updated = update_user_settings(user["id"], farm_location=req.farm_location, settings=req.settings)
     if not updated:
         raise HTTPException(status_code=404, detail={"status": "error", "message": "User not found"})
     return {"status": "success", "message": "Settings updated successfully", "user": updated}
+
+
+@app.post("/auth/logout")
+def logout_user(request: Request):
+    history_store.revoke_session(_bearer(request))
+    return {"status": "success"}
 
 
 # ══════════════════════════════════════════════════════════════
 # PART 8 — HEALTH CHECK ENDPOINT
 # ══════════════════════════════════════════════════════════════
 
+def _model_status() -> dict:
+    """
+    Truthful per-model status.  'loaded' is True only if the model object
+    exists in memory right now; otherwise a reason is given.
+    """
+    disease_ok = bool(_disease_loaded and disease_engine is not None)
+    crop_ok    = bool(_crop_loaded and crop_engine is not None)
+    yield_ok   = bool(_yield_loaded and yield_engine is not None
+                      and getattr(yield_engine, "model", None) is not None)
+
+    disease = {"loaded": disease_ok}
+    if disease_ok:
+        disease.update({
+            "type":         disease_engine._architecture,
+            "num_classes":  disease_engine.num_classes,
+            "input_size":   "224 x 224",
+            "device":       str(disease_engine.device),
+            "gradcam":      bool(plant_doctor_pipeline is not None),
+            "secondary_ensemble": {
+                "loaded": bool(_ensemble_loaded),
+                "note": ("ResNet-50 + EfficientNet-B1 fine-tuned checkpoints loaded"
+                         if _ensemble_loaded else
+                         "No fine-tuned ResNet-50/EfficientNet-B1 checkpoints found - "
+                         "predictions use EfficientNet-B0 only"),
+            },
+        })
+    else:
+        disease["reason"] = "Disease model failed to load - see logs/api_log.txt"
+
+    crop = {"loaded": crop_ok}
+    if crop_ok:
+        d = crop_engine.describe()
+        crop.update({
+            "type":         d["type"],
+            "members":      d["members"],
+            "weights":      d["weights"],
+            "num_classes":  d["n_classes"],
+            "num_features": d["n_features"],
+        })
+    else:
+        crop["reason"] = "Crop model failed to load - see logs/api_log.txt"
+
+    yld = {"loaded": yield_ok}
+    if yield_ok:
+        yld.update({
+            "type":        "XGBoost Regressor",
+            "features":    yield_engine.features,
+            "native_unit": "t/ha",
+            "api_unit":    "hg/ha",
+            "num_areas":   len(yield_engine.known_areas),
+            "num_crops":   len(yield_engine.known_crops),
+        })
+    else:
+        yld["reason"] = "Yield model failed to load - see logs/api_log.txt"
+
+    gemini_key = bool(os.getenv("GEMINI_API_KEY"))
+    return {
+        "disease": disease,
+        "crop":    crop,
+        "yield":   yld,
+        "gemini":  {
+            "configured": gemini_key,
+            "role": "advisory/explanation only - never produces predictions",
+            **({} if gemini_key else {"reason": "GEMINI_API_KEY not set"}),
+        },
+    }
+
+
 @app.get("/health")
 async def health_check():
+    models = _model_status()
     return {
         "status":          "running",
-        "disease_model":   _disease_loaded,
+        "models":          models,
+        # legacy flat flags (kept for existing clients)
+        "disease_model":   models["disease"]["loaded"],
         "ensemble_models": _ensemble_loaded,
-        "crop_model":      _crop_loaded,
-        "yield_model":     _yield_loaded,
+        "crop_model":      models["crop"]["loaded"],
+        "yield_model":     models["yield"]["loaded"],
         "timestamp":       datetime.now().isoformat()
     }
+
+
+@app.get("/ml/status")
+async def ml_status():
+    """ML pipeline status page data (used by the Model Status UI)."""
+    return {"models": _model_status(), "timestamp": datetime.now().isoformat()}
+
+
+# ── Admin/debug access ────────────────────────────────────────
+def _require_admin(request: Request) -> None:
+    """Admin endpoints need ADMIN_TOKEN in the env and X-Admin-Token header."""
+    token = os.getenv("ADMIN_TOKEN")
+    if not token:
+        raise HTTPException(status_code=403, detail="Admin endpoints are disabled (ADMIN_TOKEN not set).")
+    supplied = request.headers.get("x-admin-token", "")
+    if not secrets.compare_digest(supplied, token):
+        raise HTTPException(status_code=403, detail="Invalid admin token.")
+
+
+# ── User identity (bearer token -> sessions table) ────────────
+def _bearer(request: Request):
+    h = request.headers.get("authorization", "")
+    return h[7:].strip() if h.lower().startswith("bearer ") else None
+
+
+def _optional_user(request: Request):
+    return history_store.resolve_token(_bearer(request))
+
+
+def _require_user(request: Request) -> dict:
+    user = _optional_user(request)
+    if not user:
+        raise HTTPException(status_code=401,
+                            detail={"status": "error", "message": "Authentication required. Please sign in."})
+    return user
+
+
+def _save(user, ptype: str, label: str, **kw):
+    """Persist a prediction for a signed-in user. Never breaks the prediction itself."""
+    if not user:
+        return None
+    try:
+        hid = history_store.record_prediction(user["id"], ptype, label, **kw)
+        log_info(f"HISTORY  saved {ptype} #{hid} for user {user['id']}")
+        return hid
+    except Exception as e:
+        log_error(f"History save failed ({ptype}): {e}")
+        return None
+
+
+def _thumb_b64(path: str, size: int = 256):
+    """Small JPEG (base64) of a real Grad-CAM overlay, stored with the prediction."""
+    try:
+        import base64, io
+        from PIL import Image
+        im = Image.open(path).convert("RGB")
+        im.thumbnail((size, size))
+        buf = io.BytesIO()
+        im.save(buf, "JPEG", quality=70)
+        return base64.b64encode(buf.getvalue()).decode("ascii")
+    except Exception:
+        return None
+
+
+def _save_plant_doctor(user, result: dict, model_label: str):
+    if not user:
+        return None
+    tops = [t for t in (result.get("top_predictions") or []) if isinstance(t, dict)]
+    raw = tops[0].get("raw_label") if tops else None
+    unknown = str(result.get("status", "")).lower() == "unknown"
+    label = "Unknown" if unknown else (raw or f"{result.get('plant', 'Unknown')}___{result.get('disease', 'Unknown')}")
+    hp = result.get("heatmap_path")
+    return _save(
+        user, "disease", label,
+        confidence=result.get("confidence"), model=model_label,
+        inputs={"source": "leaf image upload"},
+        result={
+            "plant": result.get("plant"), "disease": result.get("disease"),
+            "status": result.get("status"), "severity": result.get("severity"),
+            "risk": result.get("risk"), "summary": result.get("summary"),
+            "final_advice": result.get("final_advice"),
+            "top_predictions": [{"name": t.get("name"), "raw_label": t.get("raw_label"),
+                                 "confidence": t.get("confidence")} for t in tops[:3]],
+            "gradcam_available": bool(hp),
+            "thumbnail": _thumb_b64(hp) if hp and os.path.isfile(hp) else None,
+        },
+    )
+
+
+def _save_yield(user, result: dict, inputs: dict):
+    intel = result.get("intelligence") or {}
+    risk = intel.get("risk") or {}
+    return _save(
+        user, "yield", f"{result.get('crop')} - {result.get('area')}",
+        value=result.get("predicted_yield"), unit=result.get("yield_unit", "hg/ha"),
+        model=result.get("model") or "XGBoost Regressor", inputs=inputs,
+        result={
+            "area": result.get("area"), "crop": result.get("crop"),
+            "season": result.get("season", inputs.get("season")), "year": result.get("year"),
+            "yield_level": result.get("yield_level"),
+            "raw_model_output": result.get("raw_model_output"),
+            "raw_model_unit": result.get("raw_model_unit"),
+            "inference_ms": result.get("inference_ms"),
+            "overall_risk": risk.get("overall_risk"),
+            "risk": risk, "recommendations": intel.get("recommendations"),
+            "explanation": intel.get("explanation"),
+        },
+    )
 
 
 # ══════════════════════════════════════════════════════════════
@@ -798,7 +981,8 @@ async def get_live_weather(
 # ══════════════════════════════════════════════════════════════
 
 @app.post("/predict-disease")
-async def predict_disease(file: UploadFile = File(...)):
+async def predict_disease(request: Request, file: UploadFile = File(...)):
+    _user = _optional_user(request)
     log_request("/predict-disease", {"filename": file.filename})
     try:
         if not _disease_loaded or disease_engine is None:
@@ -843,13 +1027,22 @@ async def predict_disease(file: UploadFile = File(...)):
                         ],
                     }
 
+                _hid = _save(_user, "disease", disease_name, confidence=confidence,
+                             model=result.get("model"), inputs={"source": "leaf image upload"},
+                             result={"plant": result.get("plant"), "condition": result.get("condition"),
+                                     "confidence_level": result.get("confidence_level"),
+                                     "top_predictions": [{"name": n, "confidence": round(c, 1)}
+                                                         for n, c in result.get("top_predictions", [])[:3]]})
                 return {
                     "status":           "success",
+                    "history_id":       _hid,
                     "disease":          disease_name,
                     "confidence":       round(confidence, 1),
                     "plant":            result.get("plant", "Unknown"),
                     "condition":        result.get("condition", "Unknown"),
                     "confidence_level": result.get("confidence_level", "LOW"),
+                    "model":            result.get("model"),
+                    "inference_ms":     result.get("inference_ms"),
                     # D2 — Top-3 alternative diagnoses
                     "top_predictions": [
                         {"disease": name, "confidence": round(conf, 1)}
@@ -872,6 +1065,12 @@ async def predict_disease(file: UploadFile = File(...)):
 # ══════════════════════════════════════════════════════════════
 # DETECT-DISEASE — ENSEMBLE + GRAD-CAM ENDPOINT (v3.1)
 # ══════════════════════════════════════════════════════════════
+
+def _detect_model_label() -> str:
+    if _ensemble_loaded:
+        return "Ensemble: EfficientNet-B0 + ResNet-50 + EfficientNet-B1"
+    return disease_engine._architecture if disease_engine else "unavailable"
+
 
 @app.post("/detect-disease")
 async def detect_disease(request: Request, file: UploadFile = File(...)):
@@ -897,6 +1096,7 @@ async def detect_disease(request: Request, file: UploadFile = File(...)):
     }
     """
     log_request("/detect-disease", {"filename": file.filename})
+    _user = _optional_user(request)
 
     try:
         ext = os.path.splitext(file.filename or "")[1].lower()
@@ -961,14 +1161,20 @@ async def detect_disease(request: Request, file: UploadFile = File(...)):
                         for d in raw_top[:5]
                     ]
                 else:
+                    # Single-model path: pipeline emits dicts
+                    # {"name", "raw_label", "confidence", ...}
                     top_out = [
-                        {"label": name, "confidence": round(conf, 1)}
-                        for name, conf in diagnosis.get("top_predictions", [])[:5]
+                        {"label": t["name"], "confidence": round(t["confidence"], 1)}
+                        if isinstance(t, dict) else
+                        {"label": t[0], "confidence": round(t[1], 1)}
+                        for t in diagnosis.get("top_predictions", [])[:5]
                     ]
 
                 return {
                     "status":                "success",
+                    "model":                 _detect_model_label(),
                     "prediction":            pred_str,
+                    "history_id":            _save_plant_doctor(_user, diagnosis, _detect_model_label()),
                     "confidence":            round(diagnosis["confidence"], 2),
                     "heatmap":               heatmap_b64,
                     "heatmap_url":           heatmap_url,
@@ -1009,6 +1215,7 @@ async def detect_disease(request: Request, file: UploadFile = File(...)):
                 )
                 return {
                     "status":                "success",
+                    "model":                 _detect_model_label(),
                     "prediction":            result["prediction"],
                     "confidence":            round(result["confidence"], 2),
                     "heatmap":               "",
@@ -1036,7 +1243,11 @@ async def detect_disease(request: Request, file: UploadFile = File(...)):
                 ]
                 return {
                     "status":                "success",
+                    "model":                 _detect_model_label(),
                     "prediction":            result["disease_name"],
+                    "history_id":            _save(_user, "disease", result["disease_name"],
+                                                   confidence=result["confidence"], model=result.get("model"),
+                                                   inputs={"source": "leaf image upload"}),
                     "confidence":            round(result["confidence"], 2),
                     "heatmap":               "",
                     "heatmap_url":           "",
@@ -1086,7 +1297,8 @@ async def get_ensemble_weights():
 
 
 @app.post("/ensemble-weights")
-async def update_ensemble_weights(payload: dict):
+async def update_ensemble_weights(request: Request, payload: dict):
+    _require_admin(request)
     """
     Dynamically update ensemble weights at runtime.
 
@@ -1137,7 +1349,7 @@ async def update_ensemble_weights(payload: dict):
 
 
 @app.post("/predict-crop")
-async def predict_crop(request: CropRequest):
+async def predict_crop(request: CropRequest, http_request: Request):
     log_request("/predict-crop", request.dict())
     try:
         if not _crop_loaded or crop_engine is None:
@@ -1170,8 +1382,19 @@ async def predict_crop(request: CropRequest):
                 rainfall=request.Rainfall,
             )
             
+            _hid = _save(
+                _optional_user(http_request), "crop", crop_name, confidence=confidence,
+                model="Random Forest + XGBoost + LightGBM (weighted soft voting)",
+                inputs={"N": request.Nitrogen, "P": request.Phosphorus, "K": request.Potassium,
+                        "temperature": request.Temperature, "humidity": request.Humidity,
+                        "ph": request.pH, "rainfall": request.Rainfall},
+                result={"top_recommendations": [{"crop": c, "confidence": round(v, 1)}
+                                                for c, v in result.get("top_predictions", [])[:3]],
+                        "ensemble": result.get("ensemble"), "ai_advice": result.get("ai_advice"),
+                        "agronomic_advice": advice, "inference_ms": result.get("inference_ms")})
             return {
                 "status":           "success",
+                "history_id":       _hid,
                 "recommended_crop": crop_name,
                 "confidence":       round(confidence, 1),
                 "agronomic_advice": advice,
@@ -1181,6 +1404,9 @@ async def predict_crop(request: CropRequest):
                     {"crop": crop, "confidence": round(conf, 1)}
                     for crop, conf in result.get("top_predictions", [])[:3]
                 ],
+                "model":            "Random Forest + XGBoost + LightGBM (weighted soft voting)",
+                "ensemble":         result.get("ensemble"),
+                "inference_ms":     result.get("inference_ms"),
             }
         else:
             error_response(result.get("error", "Crop prediction failed"))
@@ -1191,8 +1417,43 @@ async def predict_crop(request: CropRequest):
         error_response(f"Crop prediction exception: {e}")
 
 
+@app.post("/debug/crop-models")
+async def debug_crop_models(request: Request, body: CropRequest):
+    """Admin: per-model (RF / XGBoost / LightGBM) probabilities + ensemble."""
+    _require_admin(request)
+    if not _crop_loaded or crop_engine is None:
+        error_response("Crop model is not loaded", 503)
+    r = crop_engine.predict(
+        N=body.Nitrogen, P=body.Phosphorus, K=body.Potassium,
+        temperature=body.Temperature, humidity=body.Humidity,
+        ph=body.pH, rainfall=body.Rainfall)
+    if not r.get("success"):
+        error_response(r.get("error", "Crop prediction failed"))
+    return {"models": r["models"], "ensemble": r["ensemble"], "inference_ms": r["inference_ms"]}
+
+
+@app.get("/crop-ensemble-weights")
+async def get_crop_ensemble_weights():
+    if crop_engine is None:
+        return {"weights": {}, "loaded": False}
+    return {"weights": crop_engine.weights, "loaded": True}
+
+
+@app.post("/crop-ensemble-weights")
+async def set_crop_ensemble_weights(request: Request, payload: dict):
+    """Admin: {"weights": {"rf": 0.4, "xgb": 0.3, "lgb": 0.3}} - applied to every later prediction."""
+    _require_admin(request)
+    if crop_engine is None:
+        error_response("Crop model is not loaded", 503)
+    try:
+        new = crop_engine.set_weights(payload.get("weights", {}))
+    except ValueError as ve:
+        raise HTTPException(status_code=422, detail=str(ve))
+    return {"status": "updated", "weights": new}
+
+
 @app.post("/predict-yield")
-async def predict_yield(request: YieldRequest):
+async def predict_yield(request: YieldRequest, http_request: Request):
     log_request("/predict-yield", request.dict())
     try:
         if not _yield_loaded or yield_engine is None:
@@ -1209,13 +1470,21 @@ async def predict_yield(request: YieldRequest):
             pred_yield  = result["predicted_yield"]
             yield_level = result.get("yield_level", "UNKNOWN")
             uncertainty = result.get("yield_uncertainty")
-            log_prediction("YIELD", f"{pred_yield:.2f} t/ha ({yield_level})")
+            log_prediction("YIELD", f"{pred_yield:,.0f} hg/ha ({yield_level})")
+            _hid = _save_yield(_optional_user(http_request), result,
+                               {"crop": request.Crop, "state": request.Area,
+                                "season": request.Season, "year": request.Year})
             return {
                 "status":            "success",
+                "history_id":        _hid,
                 "predicted_yield":   pred_yield,
                 "yield_level":       yield_level,
                 "yield_uncertainty": uncertainty,
                 "yield_unit":        result.get("yield_unit", "hg/ha"),
+                "raw_model_output":  result.get("raw_model_output"),
+                "raw_model_unit":    result.get("raw_model_unit"),
+                "model":             result.get("model"),
+                "inference_ms":      result.get("inference_ms"),
             }
         else:
             detail_msg = result.get("error", "Yield prediction failed")
@@ -1238,7 +1507,7 @@ async def predict_yield(request: YieldRequest):
 # ══════════════════════════════════════════════════════════════
 
 @app.post("/predict-yield-v2")
-async def predict_yield_v2(payload: dict):
+async def predict_yield_v2(payload: dict, http_request: Request):
     """
     Phase-1 Yield Prediction Pipeline.
 
@@ -1269,9 +1538,10 @@ async def predict_yield_v2(payload: dict):
             log_prediction(
                 "YIELD-V2",
                 f"{result['area']} | {result['crop']} | {result['year']} "
-                f"-> {result['predicted_yield']:,.2f} hg/ha ({result['yield_level']})"
+                f"-> {result['predicted_yield']:,.0f} hg/ha ({result['yield_level']})"
             )
-            return {"status": "success", **result}
+            hid = _save_yield(_optional_user(http_request), result, dict(payload))
+            return {"status": "success", "history_id": hid, **result}
         else:
             detail_msg = result.get("error", "Yield prediction failed")
             suggestions = result.get("suggestions")
@@ -1293,7 +1563,7 @@ async def predict_yield_v2(payload: dict):
 # ══════════════════════════════════════════════════════════════════════════════
 
 @app.post("/predict-yield-v2/full")
-async def predict_yield_full(payload: dict):
+async def predict_yield_full(payload: dict, http_request: Request):
     """
     Phase-2 Yield Prediction + Intelligence Pipeline.
 
@@ -1331,10 +1601,11 @@ async def predict_yield_full(payload: dict):
             log_prediction(
                 "YIELD-FULL",
                 f"{result['area']} | {result['crop']} | {result['year']} "
-                f"-> {result['predicted_yield']:,.2f} hg/ha "
+                f"-> {result['predicted_yield']:,.0f} hg/ha "
                 f"({result['yield_level']}) | Risk: {risk.get('overall_risk', '?')}"
             )
-            return {"status": "success", **result}
+            hid = _save_yield(_optional_user(http_request), result, dict(payload))
+            return {"status": "success", "history_id": hid, **result}
         else:
             detail_msg  = result.get("error", "Yield prediction failed")
             suggestions = result.get("suggestions")
@@ -1352,11 +1623,12 @@ async def predict_yield_full(payload: dict):
 
 
 @app.post("/farm-assistant")
-async def farm_assistant(request: FarmAssistantRequest):
+async def farm_assistant(request: FarmAssistantRequest, http_request: Request):
     log_request("/farm-assistant", request.dict())
     try:
         question = request.question
-        answer = generate_farming_response(question)
+        context = _assistant_context(_optional_user(http_request))
+        answer = generate_farming_response(question, context)
         
         # We don't log the full answer to keep logs clean, but log the query
         logger.info(f"Farm Assistant Query: '{question}'")
@@ -1422,8 +1694,13 @@ async def plant_doctor_diagnose(request: Request, file: UploadFile = File(...)):
                 f"Severity: {result['severity']['level']}"
             )
 
+            hid = _save_plant_doctor(_optional_user(request), result, _detect_model_label())
             return {
                 "status": "success",
+                "history_id": hid,
+                # Which trained network produced the class probabilities
+                "model": _detect_model_label(),
+                "gradcam_available": bool(result.get("heatmap_path")),
                 **result,
             }
 
@@ -1472,6 +1749,7 @@ async def get_yield_trends(request: YieldTrendRequest):
 
 @app.post("/smart-report")
 async def smart_report(
+    http_request: Request,
     file:        UploadFile = File(None),
     Nitrogen:    float      = Form(...),
     Phosphorus:  float      = Form(...),
@@ -1485,6 +1763,7 @@ async def smart_report(
     Year:        int        = Form(...),
     Season:      str        = Form(None),
 ):
+    _user = _optional_user(http_request)
     log_request("/smart-report", {"Area": Area, "Crop": Crop, "Year": Year})
     report = {
         "disease_prediction":   None,
@@ -1560,14 +1839,255 @@ async def smart_report(
                     "yield_uncertainty": y_res.get("yield_uncertainty"),
                     "yield_unit":        y_res.get("yield_unit", "hg/ha"),
                 }
-                log_prediction("YIELD", f"{y_res['predicted_yield']:.2f} t/ha")
+                log_prediction("YIELD", f"{y_res['predicted_yield']:,.0f} hg/ha")
             else:
                 report["yield_prediction"] = {"error": y_res.get("error")}
     except Exception as e:
         report["yield_prediction"] = {"error": str(e)}
         log_error(f"Smart-report yield error: {e}")
 
+    if _user:
+        yp = report.get("yield_prediction") or {}
+        cp = report.get("crop_recommendation") or {}
+        report["history_id"] = _save(
+            _user, "report", f"{Crop} - {Area} {Year}",
+            value=yp.get("predicted_yield"), unit=yp.get("yield_unit"),
+            confidence=cp.get("confidence"), model="Disease CNN + Crop ensemble + XGBoost",
+            inputs={"N": Nitrogen, "P": Phosphorus, "K": Potassium, "temperature": Temperature,
+                    "humidity": Humidity, "ph": pH, "rainfall": Rainfall,
+                    "area": Area, "crop": Crop, "year": Year, "season": Season},
+            result=report)
+        # Real stored context so the report is consistent with the dashboard/history
+        stats = history_store.stats(_user["id"])
+        report["history_summary"] = {
+            "counts": stats["counts"],
+            "latest": {t: (lambda r: {"label": r["label"], "confidence": r["confidence"],
+                                      "value": r["value"], "unit": r["unit"],
+                                      "timestamp": r["timestamp"]} if r else None)(
+                            history_store.latest(_user["id"], t))
+                       for t in ("disease", "crop", "yield")},
+        }
     return {"smart_report": report}
+
+
+# ══════════════════════════════════════════════════════════════
+# DYNAMIC DATA: DASHBOARD / HISTORY / ALERTS / METADATA
+# ══════════════════════════════════════════════════════════════
+
+def _assistant_context(user) -> str:
+    """Real ML results + farm context handed to Gemini (it only explains them)."""
+    if not user:
+        return ""
+    lines = []
+    if user.get("farm_location"):
+        lines.append(f"Farm location: {user['farm_location']}")
+    for t in ("disease", "crop", "yield"):
+        r = history_store.latest(user["id"], t)
+        if not r:
+            continue
+        if t == "disease":
+            lines.append(f"Latest disease model result: {r['label']} ({r['confidence']:.1f}% confidence, {r['model']})")
+        elif t == "crop":
+            lines.append(f"Latest crop model recommendation: {r['label']} ({(r['confidence'] or 0):.1f}%)")
+        else:
+            lines.append(f"Latest XGBoost yield forecast: {r['label']} = {r['value']:,.0f} {r['unit']}")
+    return "\n".join(lines)
+
+
+async def _weather_for(user):
+    """(weather_dict | None, error_message | None) for the user's saved farm location."""
+    loc = (user.get("farm_location") or "").strip()
+    if not loc:
+        return None, "No farm location set. Choose one in Settings."
+    try:
+        return (await get_live_weather(location=loc))["data"], None
+    except HTTPException as he:
+        d = he.detail
+        return None, (d.get("message") if isinstance(d, dict) else str(d))
+    except Exception as e:
+        return None, f"Weather unavailable: {e}"
+
+
+async def _compute_alerts(user):
+    weather, weather_err = await _weather_for(user)
+    alerts = alerts_engine.build_alerts(
+        weather=weather,
+        latest_disease=history_store.latest(user["id"], "disease"),
+        latest_yield=history_store.latest(user["id"], "yield"),
+        models=_model_status(),
+    )
+    seen = set(user["settings"].get("alerts_seen", []))
+    current_ids = {a["id"] for a in alerts}
+    if seen - current_ids:                      # prune cleared alerts so they can re-fire later
+        seen &= current_ids
+        update_user_settings(user["id"], settings={"alerts_seen": sorted(seen)})
+        user["settings"]["alerts_seen"] = sorted(seen)
+    for a in alerts:
+        a["unread"] = a["id"] not in seen
+    return alerts, weather, weather_err
+
+
+def _evaluation_metrics() -> dict:
+    """Held-out EVALUATION metrics from the models' own metadata (not prediction confidence)."""
+    import json as _json
+    from smart_system import config as _cfg
+    out = {}
+    for key, folder, field, label in (
+        ("disease", _cfg.DISEASE_MODEL_DIR, "best_val_accuracy", "validation accuracy"),
+        ("crop",    _cfg.CROP_MODEL_DIR,    "test_accuracy",      "hold-out test accuracy"),
+        ("yield",   _cfg.YIELD_MODEL_DIR,   "test_r2",            "hold-out R²"),
+    ):
+        try:
+            with open(os.path.join(folder, "model_metadata.json"), encoding="utf-8") as f:
+                m = _json.load(f)
+            if m.get(field) is not None:
+                out[key] = {"metric": label, "value": m[field]}
+        except Exception:
+            pass
+    return out
+
+
+def _advisory_items(latest: dict) -> list:
+    """Advice text that was generated for the user's real, stored ML results."""
+    items = []
+    c = latest.get("crop")
+    if c and (c["result"].get("ai_advice") or c["result"].get("agronomic_advice")):
+        text = c["result"].get("ai_advice") or "; ".join(c["result"]["agronomic_advice"][:2])
+        items.append({"kind": "crop", "title": f"Crop: {c['label']}", "text": text,
+                      "source": "Gemini explaining the crop ensemble result" if c["result"].get("ai_advice") else "Agronomic rules",
+                      "timestamp": c["timestamp"]})
+    d = latest.get("disease")
+    if d and (d["result"].get("final_advice") or d["result"].get("summary")):
+        fa = d["result"].get("final_advice")
+        text = fa if isinstance(fa, str) else (d["result"].get("summary") or "")
+        if text:
+            items.append({"kind": "disease", "title": f"Disease: {d['label']}", "text": text,
+                          "source": "Plant Doctor treatment advisory", "timestamp": d["timestamp"]})
+    y = latest.get("yield")
+    if y:
+        rec = y["result"].get("recommendations")
+        text = None
+        if isinstance(rec, dict):
+            for v in rec.values():
+                if isinstance(v, str) and v:
+                    text = v
+                    break
+                if isinstance(v, list) and v and isinstance(v[0], str):
+                    text = v[0]
+                    break
+        if text:
+            items.append({"kind": "yield", "title": f"Yield: {y['label']}", "text": text,
+                          "source": "Yield intelligence layer", "timestamp": y["timestamp"]})
+    return items
+
+
+@app.get("/dashboard")
+async def dashboard(request: Request):
+    """Everything the dashboard shows, computed from the signed-in user's stored predictions."""
+    user = _require_user(request)
+    uid = user["id"]
+    st = history_store.stats(uid)
+    latest = {t: history_store.latest(uid, t) for t in ("disease", "crop", "yield")}
+
+    alerts, weather, weather_err = await _compute_alerts(user)
+
+    rows = st["yield_rows"]
+    to_t = lambda r: round(r["value"] / 10000.0, 3) if r["unit"] == "hg/ha" else r["value"]
+    yield_history = [{"timestamp": r["timestamp"], "label": r["label"], "crop": r["crop"],
+                      "state": r["state"], "season": r["season"], "year": r["year"],
+                      "yield_hg_ha": r["value"], "yield_t_ha": to_t(r)} for r in rows[-12:]]
+
+    def _group(key):
+        g = {}
+        for r in rows:
+            if r.get(key) is not None:
+                g.setdefault(r[key], []).append(to_t(r))
+        return g
+
+    yield_by_year = [{"year": k, "avg_yield_t_ha": round(sum(v) / len(v), 3), "count": len(v)}
+                     for k, v in sorted(_group("year").items(), key=lambda kv: str(kv[0]))]
+    yield_by_season = [{"season": k, "avg_yield_t_ha": round(sum(v) / len(v), 3), "count": len(v)}
+                       for k, v in _group("season").items()]
+
+    ly = latest["yield"]
+    if ly:
+        ly = {**ly, "yield_t_ha": to_t({"value": ly["value"], "unit": ly["unit"]})}
+
+    return {
+        "status": "success",
+        "user": {"username": user["username"], "full_name": user["full_name"],
+                 "farm_location": user["farm_location"]},
+        "latest_predictions": {"disease": latest["disease"], "crop": latest["crop"], "yield": ly},
+        "statistics": {**st["counts"], "averages": st["averages"],
+                       "most_recommended_crop": st["most_recommended_crop"],
+                       "most_detected_disease": st["most_detected_disease"]},
+        "disease_distribution": st["disease_distribution"],
+        "yield_history": yield_history,
+        "yield_by_year": yield_by_year,
+        "seasonal_yield": yield_by_season,
+        "recent_activity": history_store.list_history(uid, limit=6),
+        "advisory": _advisory_items(latest),
+        "alerts": alerts,
+        "unread_alerts": sum(1 for a in alerts if a["unread"]),
+        "weather": weather, "weather_error": weather_err,
+        "model_status": _model_status(),
+        "model_evaluation": _evaluation_metrics(),
+        "last_updated": datetime.now().astimezone().isoformat(timespec="seconds"),
+    }
+
+
+@app.get("/history")
+async def get_history(request: Request, limit: int = 20, offset: int = 0, type: Optional[str] = None):
+    """The signed-in user's prediction history (newest first). type=disease|crop|yield|report."""
+    user = _require_user(request)
+    if type and type not in ("disease", "crop", "yield", "report"):
+        raise HTTPException(status_code=422, detail={"status": "error", "message": "Unknown type"})
+    items = history_store.list_history(user["id"], type, limit=limit, offset=offset)
+    return {"status": "success", "items": items, "limit": limit, "offset": offset}
+
+
+@app.get("/history/{history_id}")
+async def get_history_item(history_id: int, request: Request):
+    user = _require_user(request)
+    for r in history_store.list_history(user["id"], limit=200, with_result=True):
+        if r["id"] == history_id:
+            return {"status": "success", "item": r}
+    raise HTTPException(status_code=404, detail={"status": "error", "message": "Not found"})
+
+
+@app.get("/alerts")
+async def get_alerts(request: Request):
+    user = _require_user(request)
+    alerts, weather, weather_err = await _compute_alerts(user)
+    return {"status": "success", "alerts": alerts,
+            "unread_count": sum(1 for a in alerts if a["unread"]),
+            "weather_error": weather_err, "updated": datetime.now().astimezone().isoformat(timespec="seconds")}
+
+
+@app.post("/alerts/seen")
+async def mark_alerts_seen(request: Request):
+    user = _require_user(request)
+    alerts, _, _ = await _compute_alerts(user)
+    update_user_settings(user["id"], settings={"alerts_seen": sorted(a["id"] for a in alerts)})
+    return {"status": "success", "unread_count": 0}
+
+
+@app.get("/metadata")
+async def model_metadata():
+    """Options the models actually support (so the UI cannot drift from the models)."""
+    from smart_system.config import SEASON_MAP
+    ye = yield_engine
+    return {
+        "status": "success",
+        "supported_crops":  ye.known_crops if ye else [],
+        "supported_states": ye.known_areas if ye else [],
+        "supported_seasons": list(SEASON_MAP.keys()),
+        "crop_recommendation_classes": (crop_engine.label_encoder.classes_.tolist()
+                                        if crop_engine and crop_engine.label_encoder is not None else []),
+        "disease_classes": disease_engine.class_names if disease_engine else [],
+        "yield_units": {"api": "hg/ha", "model_native": "t/ha", "display": ["tons/ha", "hg/ha", "kg/ha"]},
+        "models": _model_status(),
+    }
 
 
 # ══════════════════════════════════════════════════════════════

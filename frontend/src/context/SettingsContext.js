@@ -1,66 +1,57 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import axios from 'axios';
+import apiClient from '../api/apiClient';
 import { useAuth } from './AuthContext';
 
 const SettingsContext = createContext(null);
 
-const API_BASE = 'http://127.0.0.1:8000';
+const readStore = (key, fallback) => {
+  try {
+    const v = localStorage.getItem(key);
+    return v === null ? fallback : v;
+  } catch {
+    return fallback;
+  }
+};
 
+/**
+ * Farm location / units.
+ *  - Signed in: the server profile (users table) is the source of truth; it is
+ *    what weather, alerts and the dashboard use on the backend.
+ *  - Signed out: localStorage is only a per-browser preference; nothing server
+ *    side depends on it.
+ * There is no hard-coded default city: until a location is chosen it is ''.
+ */
 export const SettingsProvider = ({ children }) => {
-  const { user } = useAuth();
+  const { user, isAuthenticated } = useAuth();
 
-  const [farmLocation, setFarmLocation] = useState(() => {
-    try {
-      const saved = localStorage.getItem('smart_farm_location');
-      if (saved !== null) return saved;
-      // Default to Coimbatore, Tamil Nadu on initial install
-      return 'Coimbatore, Tamil Nadu';
-    } catch {
-      return 'Coimbatore, Tamil Nadu';
-    }
-  });
-
-  const [yieldUnit, setYieldUnit] = useState(() => {
-    try {
-      return localStorage.getItem('smart_farm_yield_unit') || 'tons/ha';
-    } catch {
-      return 'tons/ha';
-    }
-  });
-
-  const [tempUnit, setTempUnit] = useState(() => {
-    try {
-      return localStorage.getItem('smart_farm_temp_unit') || 'celsius';
-    } catch {
-      return 'celsius';
-    }
-  });
-
+  const [farmLocation, setFarmLocation] = useState(() => readStore('smart_farm_location', ''));
+  const [yieldUnit, setYieldUnit] = useState(() => readStore('smart_farm_yield_unit', 'tons/ha'));
+  const [tempUnit, setTempUnit] = useState(() => readStore('smart_farm_temp_unit', 'celsius'));
   const [autoSync, setAutoSync] = useState(() => {
     try {
-      const saved = localStorage.getItem('smart_farm_auto_sync');
-      return saved !== null ? JSON.parse(saved) : true;
+      return JSON.parse(readStore('smart_farm_auto_sync', 'true'));
     } catch {
       return true;
     }
   });
+  // Bumped after the server has stored new settings, so data views can refetch.
+  const [settingsVersion, setSettingsVersion] = useState(0);
 
-  // Synchronize when authenticated user changes
+  // Adopt the server profile when the signed-in user changes.
   useEffect(() => {
-    if (user) {
-      if (user.farm_location !== undefined && user.farm_location !== null) {
-        setFarmLocation(user.farm_location);
-        try {
-          localStorage.setItem('smart_farm_location', user.farm_location);
-        } catch {
-          // ignore storage error
-        }
+    if (!user) return;
+    if (user.farm_location !== undefined && user.farm_location !== null) {
+      setFarmLocation(user.farm_location);
+      try {
+        localStorage.setItem('smart_farm_location', user.farm_location);
+      } catch {
+        // ignore
       }
-      if (user.settings) {
-        if (user.settings.yieldUnit) setYieldUnit(user.settings.yieldUnit);
-        if (user.settings.tempUnit) setTempUnit(user.settings.tempUnit);
-        if (user.settings.autoSync !== undefined) setAutoSync(user.settings.autoSync);
-      }
+    }
+    if (user.settings) {
+      if (user.settings.yieldUnit) setYieldUnit(user.settings.yieldUnit);
+      if (user.settings.tempUnit) setTempUnit(user.settings.tempUnit);
+      if (user.settings.autoSync !== undefined) setAutoSync(user.settings.autoSync);
     }
   }, [user]);
 
@@ -68,7 +59,7 @@ export const SettingsProvider = ({ children }) => {
     farmLocation: newLoc,
     yieldUnit: newYieldUnit,
     tempUnit: newTempUnit,
-    autoSync: newAutoSync
+    autoSync: newAutoSync,
   }) => {
     const loc = newLoc !== undefined ? newLoc.trim() : farmLocation;
     const yUnit = newYieldUnit !== undefined ? newYieldUnit : yieldUnit;
@@ -86,30 +77,24 @@ export const SettingsProvider = ({ children }) => {
       localStorage.setItem('smart_farm_temp_unit', tUnit);
       localStorage.setItem('smart_farm_auto_sync', JSON.stringify(aSync));
     } catch {
-      // ignore storage error
+      // ignore storage errors
     }
 
-    // Persist to backend database if user is authenticated
-    if (user?.username) {
+    if (isAuthenticated) {
       try {
-        await axios.put(`${API_BASE}/auth/settings`, {
-          username: user.username,
+        // The server identifies the user from the bearer token.
+        await apiClient.put('/auth/settings', {
           farm_location: loc,
-          settings: {
-            yieldUnit: yUnit,
-            tempUnit: tUnit,
-            autoSync: aSync
-          }
+          settings: { yieldUnit: yUnit, tempUnit: tUnit, autoSync: aSync },
         });
       } catch (err) {
         console.warn('Could not persist settings to backend profile:', err.message);
       }
     }
+    setSettingsVersion((v) => v + 1);
   };
 
-  const updateFarmLocation = (loc) => {
-    updateSettings({ farmLocation: loc });
-  };
+  const updateFarmLocation = (loc) => updateSettings({ farmLocation: loc });
 
   return (
     <SettingsContext.Provider
@@ -118,8 +103,9 @@ export const SettingsProvider = ({ children }) => {
         yieldUnit,
         tempUnit,
         autoSync,
+        settingsVersion,
         updateSettings,
-        updateFarmLocation
+        updateFarmLocation,
       }}
     >
       {children}

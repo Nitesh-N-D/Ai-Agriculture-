@@ -18,7 +18,10 @@ Usage
 from __future__ import annotations
 
 import logging
+import time
 from typing import Dict
+
+from .. import config as _cfg
 
 from .schema  import YieldInput
 from .weather import get_weather
@@ -132,20 +135,29 @@ class YieldPipeline:
         )
 
         # ── Step 5: Model prediction ──────────────────────────────────
-        predicted_yield = float(self._model.predict(input_df)[0])
+        # The model's native unit is t/ha; convert explicitly to hg/ha.
+        t0 = time.perf_counter()
+        raw_t_ha = float(self._model.predict(input_df)[0])
+        inference_ms = (time.perf_counter() - t0) * 1000.0
+        predicted_yield = raw_t_ha * _cfg.T_HA_TO_HG_HA
 
         # ── Step 6: Classify yield level ──────────────────────────────
         yield_level = _classify_yield(predicted_yield, canonical_crop)
 
         logger.info(
             f"YieldPipeline | {canonical_area} | {canonical_crop} | "
-            f"{year} | {season} → {predicted_yield:,.2f} hg/ha ({yield_level})"
+            f"{year} | {season} → XGBoost {raw_t_ha:.3f} t/ha = "
+            f"{predicted_yield:,.0f} hg/ha ({yield_level}) | {inference_ms:.0f} ms"
         )
 
         return {
             "success":         True,
             "predicted_yield": round(predicted_yield, 2),
             "yield_unit":      "hg/ha",
+            "raw_model_output": raw_t_ha,
+            "raw_model_unit":  _cfg.YIELD_MODEL_NATIVE_UNIT,
+            "model":           "XGBoost Regressor",
+            "inference_ms":    round(inference_ms, 1),
             "yield_level":     yield_level,
             "weather":         weather,
             "area":            canonical_area,

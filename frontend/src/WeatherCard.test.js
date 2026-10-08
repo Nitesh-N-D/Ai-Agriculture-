@@ -4,6 +4,7 @@ import axios from 'axios';
 import { BrowserRouter } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { SettingsProvider } from './context/SettingsContext';
+import { DataProvider } from './context/DataContext';
 import Sidebar from './components/Sidebar';
 import SettingsModal from './components/SettingsModal';
 
@@ -54,6 +55,7 @@ const renderTestApp = (initialLocation = 'Coimbatore, Tamil Nadu') => {
       <BrowserRouter>
         <AuthProvider>
           <SettingsProvider>
+           <DataProvider>
             <Sidebar
               mobileOpen={false}
               setMobileOpen={() => {}}
@@ -62,6 +64,7 @@ const renderTestApp = (initialLocation = 'Coimbatore, Tamil Nadu') => {
               onOpenSettings={() => setSettingsOpen(true)}
             />
             <SettingsModal isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
+           </DataProvider>
           </SettingsProvider>
         </AuthProvider>
       </BrowserRouter>
