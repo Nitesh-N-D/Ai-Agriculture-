@@ -810,6 +810,67 @@ async def get_live_weather(
     city_name = parts[0] if parts else query
     state_name = parts[1] if len(parts) > 1 else ""
 
+    # 0. OpenWeatherMap (primary when OPENWEATHER_API_KEY is set): geocode, then current weather
+    owm_key = os.getenv("OPENWEATHER_API_KEY")
+    if owm_key:
+        try:
+            geo = requests.get(
+                "https://api.openweathermap.org/geo/1.0/direct",
+                params={"q": ",".join([p for p in (city_name, state_name, "IN") if p]), "limit": 5, "appid": owm_key},
+                timeout=6,
+            )
+            places = geo.json() if geo.status_code == 200 else []
+            if not places and state_name:       # retry city alone (India)
+                geo = requests.get("https://api.openweathermap.org/geo/1.0/direct",
+                                   params={"q": f"{city_name},IN", "limit": 5, "appid": owm_key}, timeout=6)
+                places = geo.json() if geo.status_code == 200 else []
+            if places:
+                pick = next((x for x in places
+                             if state_name and state_name.lower() in (x.get("state") or "").lower()), places[0])
+                wr = requests.get(
+                    "https://api.openweathermap.org/data/2.5/weather",
+                    params={"lat": pick["lat"], "lon": pick["lon"], "units": "metric", "appid": owm_key},
+                    timeout=6,
+                )
+                if wr.status_code == 200:
+                    w = wr.json()
+                    main = w.get("main") or {}
+                    if main.get("temp") is None:
+                        raise ValueError("OpenWeatherMap response has no temperature")
+                    wx = (w.get("weather") or [{}])[0]
+                    group = (wx.get("main") or "").lower()
+                    icon_type = {
+                        "thunderstorm": "cloud-lightning", "drizzle": "cloud-drizzle", "rain": "cloud-rain",
+                        "snow": "cloud-snow", "clear": "sun", "clouds": "cloud",
+                        "mist": "cloud-fog", "fog": "cloud-fog", "haze": "cloud-fog", "smoke": "cloud-fog",
+                        "dust": "cloud-fog", "sand": "cloud-fog",
+                    }.get(group, "cloud-sun")
+                    if group == "clouds" and (w.get("clouds") or {}).get("all", 100) < 60:
+                        icon_type = "cloud-sun"
+                    rain = w.get("rain") or {}
+                    res_city = pick.get("name") or city_name
+                    res_state = pick.get("state") or state_name
+                    return {
+                        "status": "success",
+                        "data": {
+                            "location": f"{res_city}, {res_state}".strip(", ") or query,
+                            "city": res_city, "state": res_state,
+                            "country": pick.get("country", "IN"),
+                            "temperature": float(main["temp"]),
+                            "condition": (wx.get("description") or "").title() or "Unknown",
+                            "condition_code": icon_type,
+                            "humidity": float(main["humidity"]) if main.get("humidity") is not None else None,
+                            "wind_speed": round(float((w.get("wind") or {}).get("speed", 0.0)) * 3.6, 1),
+                            "rainfall": float(rain.get("1h", 0.0)),
+                            "source": "openweathermap",
+                        },
+                    }
+                logger.warning(f"OpenWeatherMap weather returned {wr.status_code} for '{query}'")
+            else:
+                logger.warning(f"OpenWeatherMap could not geocode '{query}'")
+        except Exception as e:
+            logger.warning(f"OpenWeatherMap failed: {e}. Falling back.")
+
     # 1. Attempt WeatherAPI if key configured in environment
     weather_api_key = os.getenv("WEATHER_API_KEY") or os.getenv("WEATHERAPI_KEY")
     if weather_api_key:
@@ -822,6 +883,8 @@ async def get_live_weather(
             if resp.status_code == 200:
                 data = resp.json()
                 curr = data.get("current", {})
+                if curr.get("temp_c") is None:
+                    raise ValueError("WeatherAPI response has no current temperature")
                 loc = data.get("location", {})
                 cond = curr.get("condition", {})
                 cond_text = cond.get("text", "Clear")
