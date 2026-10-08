@@ -1,1 +1,9 @@
-#!/usr/bin/env bash\n# exit on error\nset -o errexit\n\npython -m pip install --upgrade pip\n# Install CPU-optimized PyTorch first for fast build\npip install torch torchvision --index-url https://download.pytorch.org/whl/cpu\n# Install remaining dependencies\npip install -r requirements.txt\n
+#!/usr/bin/env bash
+# exit on error
+set -o errexit
+
+python -m pip install --upgrade pip
+# Install CPU-optimized PyTorch first for fast build
+pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+# Install remaining dependencies
+pip install -r requirements.txt
