@@ -1,0 +1,14 @@
+﻿.git
+.github
+frontend
+venv
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache
+.coverage
+htmlcov
+tmp/plant_doctor_output/*
+!tmp/plant_doctor_output/.gitkeep
+logs/*.txt
